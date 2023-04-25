@@ -1,0 +1,363 @@
+[
+    {
+        "id": "d447f343.bbf35",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "738e06df.5c1e58",
+        "type": "csv",
+        "z": "d447f343.bbf35",
+        "name": "CSV_input_file",
+        "sep": ",",
+        "hdrin": true,
+        "hdrout": "none",
+        "multi": "one",
+        "ret": "\\n",
+        "temp": "",
+        "skip": "0",
+        "x": 600,
+        "y": 120,
+        "wires": [
+            [
+                "19495fba.37f588"
+            ]
+        ]
+    },
+    {
+        "id": "e8d6b700.c6c118",
+        "type": "file in",
+        "z": "d447f343.bbf35",
+        "name": "csv_input",
+        "filename": "/home/user/Documents/iot_challenge2/challenge2023_2.csv",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "x": 400,
+        "y": 120,
+        "wires": [
+            [
+                "738e06df.5c1e58"
+            ]
+        ]
+    },
+    {
+        "id": "c4f0b2b5.da47a",
+        "type": "function",
+        "z": "d447f343.bbf35",
+        "name": "initialize_function",
+        "func": "function sleep(milliseconds) {\n    const date = Date.now();\n    let currentDate = null;\n    do {\n        currentDate = Date.now();\n    } while (currentDate - date < milliseconds);\n}\n\nsleep(1000)\n\nglobal.set(\"csv_file\", [])\nglobal.set(\"count\", 0)\nglobal.set(\"initialized\", 0)\nglobal.set(\"temperatures_received\", 0)\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 190,
+        "y": 120,
+        "wires": [
+            [
+                "e8d6b700.c6c118"
+            ]
+        ]
+    },
+    {
+        "id": "19495fba.37f588",
+        "type": "function",
+        "z": "d447f343.bbf35",
+        "name": "create_csv_list",
+        "func": "let csv = global.get(\"csv_file\")\ncsv.push(msg.payload)\nglobal.set(\"csv_file\", csv)\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 820,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "daec565d.16536",
+        "type": "mqtt in",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "topic": "polimi/challenge_2/2023/id_code_generator/4",
+        "qos": "0",
+        "broker": "15bc7417.e39524",
+        "x": 210,
+        "y": 200,
+        "wires": [
+            [
+                "4c9f1814.be9f2"
+            ]
+        ]
+    },
+    {
+        "id": "2b63e7e9.8813f",
+        "type": "function",
+        "z": "d447f343.bbf35",
+        "name": "manage_id_and_send_publish_messages",
+        "func": "function generate_payload(previous_id, publish_payload) {\n    let timestamp = \"\\\"timestamp\\\": \\\"\" + Date.now() + \"\\\"\"\n    let prev_id = \"\\\"id\\\": \\\"\" + previous_id + \"\\\"\"\n    if (publish_payload === undefined) {\n        publish_payload = \"{}\"\n    }\n    let payload = \"\\\"payload\\\": \" + publish_payload + \"\"\n    let m = \"{ \" + timestamp + \", \" + prev_id + \", \" + payload + \" }\"\n\n    return m\n}\n\nfunction get_contents(content) {\n    let contents = []\n\n    if (content !== undefined) {\n        contents = content.split(\"},\")\n        \n        for (let i = 0; i < contents.length - 1; i++) {\n            contents[i] = contents[i] + \"}\"\n        }\n    }\n\n    return contents\n}\n\nlet check = global.get(\"initialized\")\nlet c = global.get(\"count\")\nlet msgs = []\n\nif (check == 1 && c < 100 && msg.payload !== \"\") {\n    c = c + 1\n    global.set(\"count\", c)\n\n    let ID = msg.payload[\"id\"]\n    let n = (ID + 2022) % 7711\n\n    let frame = global.get(\"csv_file[\" + n + \"]\")\n\n    if (frame[\"Info\"].startsWith(\"Publish Message\")) {\n        let publish_messages = frame[\"Info\"].split(\", \")\n        let publish_messages_contents = get_contents(frame[\"Message\"])\n\n        for (let i = 0; i < publish_messages.length; i++) {\n            let m = {}\n            m.topic = \"/polimi/iot2023/challenge2/10372022\"\n            m.payload = generate_payload(ID, publish_messages_contents[i])\n            msgs.push(m)\n        }\n    }\n} else if(c == 100) {\n    c = c + 1\n    global.set(\"count\", c)\n    msg.payload = \"END\"\n    msg.topic = \"/polimi/iot2023/challenge2/10372022\"\n    msgs.push(msg)\n}\n\nreturn [msgs];",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 910,
+        "y": 200,
+        "wires": [
+            [
+                "3ec79bc2.87256c",
+                "c3eea1d0.ecc0b8"
+            ]
+        ]
+    },
+    {
+        "id": "a121ae1d.ed06f",
+        "type": "inject",
+        "z": "d447f343.bbf35",
+        "name": "start",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "0.5",
+        "x": 90,
+        "y": 40,
+        "wires": [
+            [
+                "6d9925c6.2add34",
+                "c4f0b2b5.da47a"
+            ]
+        ]
+    },
+    {
+        "id": "c3eea1d0.ecc0b8",
+        "type": "mqtt out",
+        "z": "d447f343.bbf35",
+        "name": "/polimi/iot2023/challenge2/10372022",
+        "topic": "",
+        "qos": "",
+        "retain": "",
+        "broker": "15bc7417.e39524",
+        "x": 1110,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "7b877f50.435108",
+        "type": "mqtt in",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "topic": "/polimi/iot2023/challenge2/10372022",
+        "qos": "2",
+        "broker": "15bc7417.e39524",
+        "x": 160,
+        "y": 340,
+        "wires": [
+            [
+                "adb5fd9e.13eed8",
+                "105b7207.27bb6e"
+            ]
+        ]
+    },
+    {
+        "id": "105b7207.27bb6e",
+        "type": "function",
+        "z": "d447f343.bbf35",
+        "name": "filter_celsius_samples",
+        "func": "if (msg.payload == \"START\") {\n    global.set(\"initialized\", 1)\n} else if(msg.payload != \"END\") {\n    const obj = JSON.parse(msg.payload)\n    var p = obj.payload\n} else {\n    global.set(\"initialized\", 0)\n}\n\nlet temps_count = global.get(\"temperatures_received\")\n\nif (p !== undefined) {\n    if (p[\"unit\"] == \"C\") {\n        temps_count = temps_count + 1\n        global.set(\"temperatures_receives\", temps_count)\n\n        let temp_msg = {}\n        temp_msg.payload = p[\"range\"][1]\n        \n        return [msg, temp_msg];\n    }\n}",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 690,
+        "y": 340,
+        "wires": [
+            [
+                "e107e2d6.f6169"
+            ],
+            [
+                "94d61e62.73077",
+                "bdc26f5a.3248f8"
+            ]
+        ]
+    },
+    {
+        "id": "e107e2d6.f6169",
+        "type": "file",
+        "z": "d447f343.bbf35",
+        "name": "csv_output",
+        "filename": "/home/user/Documents/iot_challenge2/ouput.csv",
+        "appendNewline": true,
+        "createDir": true,
+        "overwriteFile": "false",
+        "x": 1150,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6d9925c6.2add34",
+        "type": "function",
+        "z": "d447f343.bbf35",
+        "name": "send_start_message",
+        "func": "msg.topic = \"/polimi/iot2023/challenge2/10372022\"\nmsg.payload = \"START\"\n\nfunction sleep(milliseconds) {\n    const date = Date.now();\n    let currentDate = null;\n    do {\n        currentDate = Date.now();\n    } while (currentDate - date < milliseconds);\n}\n\nsleep(2000)\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 320,
+        "y": 40,
+        "wires": [
+            [
+                "ad217847.c7dcb"
+            ]
+        ]
+    },
+    {
+        "id": "ad217847.c7dcb",
+        "type": "mqtt out",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "topic": "/polimi/iot2023/challenge2/10372022",
+        "qos": "2",
+        "retain": "",
+        "broker": "15bc7417.e39524",
+        "x": 690,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "3ec79bc2.87256c",
+        "type": "debug",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 1240,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "94d61e62.73077",
+        "type": "ui_chart",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "group": "44fcb118.b2e1b",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "label": "chart",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 850,
+        "y": 460,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "bdc26f5a.3248f8",
+        "type": "debug",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 940,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "adb5fd9e.13eed8",
+        "type": "debug",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 240,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "4c9f1814.be9f2",
+        "type": "json",
+        "z": "d447f343.bbf35",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 540,
+        "y": 200,
+        "wires": [
+            [
+                "2b63e7e9.8813f"
+            ]
+        ]
+    },
+    {
+        "id": "15bc7417.e39524",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "broker.hivemq.com",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "44fcb118.b2e1b",
+        "type": "ui_group",
+        "z": "",
+        "name": "Default",
+        "tab": "f1a4c78b.7cfa88",
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "f1a4c78b.7cfa88",
+        "type": "ui_tab",
+        "z": "",
+        "name": "Home",
+        "icon": "dashboard"
+    }
+]
