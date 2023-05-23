@@ -1,0 +1,2 @@
+COMPONENT=RoutingProtocolAppC
+include $(MAKERULES)
