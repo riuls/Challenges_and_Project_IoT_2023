@@ -1,2 +1,4 @@
-COMPONENT=RoutingProtocolAppC
+COMPONENT=RadioRouteAppC
+
 include $(MAKERULES)
+
