@@ -4,7 +4,6 @@
 module RadioRouteC @safe() {
 
     uses {
-
         interface Boot;
 
         interface SplitControl as AMControl;
@@ -16,6 +15,7 @@ module RadioRouteC @safe() {
         interface Timer<TMilli> as Timer1;
 
         interface Leds;
+
     }
 
 } implementation {
@@ -26,7 +26,11 @@ module RadioRouteC @safe() {
     message_t queued_packet;
     uint16_t queue_addr;
 
-    //Time delay in milli seconds
+    // variable to save the data message to be sent
+    message_t data_packet;
+    bool sent=FALSE;
+
+    // Time delay in milli seconds
     uint16_t time_delays[7] = {61,173,267,371,479,583,689};
 
     bool route_req_sent=FALSE;
@@ -45,7 +49,7 @@ module RadioRouteC @safe() {
     */
     void initialize_routing_table() {
 
-        for (int i = 0; i < 7; i++) {
+        for (uint16_t i = 0; i < 7; i++) {
             if (i + 1 != TOS_NODE_ID) {
                 routing_table[i][0] = i + 1;
                 routing_table[i][1] = UINT16_MAX;
@@ -91,11 +95,27 @@ module RadioRouteC @safe() {
         return TRUE;
     }
 
+    //TODO comments
     bool actual_send (uint16_t address, message_t* packet){
         /*
         * Implement here the logic to perform the actual send of the packet using the tinyOS interfaces
         */  
     }
+
+    // TODO comments
+    uint16_t get_row_index_by_node_id(uint16_t node_id) {
+        
+        for (uint16_t i = 0; i < 6; i++) {
+            if (routing_table[i][0] == node_id) {
+                return i;
+            }
+        }
+
+        return -1;
+
+    }
+
+
 
 
     //***************** Boot interface ********************//
@@ -113,8 +133,9 @@ module RadioRouteC @safe() {
         
         if(err == SUCCESS) {
             // TODO print something for the debugging
-
+            
 	        initialize_routing_table();
+
             // TODO after the radio is ON we should start counting in order to send the first req from 1 to 7
 
   	    } else {
@@ -163,83 +184,154 @@ module RadioRouteC @safe() {
 	* Perform the packet send using the generate_send function if needed
 	* Implement the LED logic and print LED status on Debug
 	*/
-	
-    }
 
-
-
-
-
-
-
-
-
-
-
-    
-
-    // TODO comments
-    void sendData(uint8_t type, uint16_t sender, uint16_t destination, uint16_t value) {
-
-	    data_msg_t* mess = (data_msg_t*)(call Packet.getPayload(&packet, sizeof(data_msg_t)));
-	    
-        if (mess == NULL) {
-	        return;
-	    }
-
-        // we want to send a ROUTE_REQ message
-        if (type == 1) {
-            mess->type = type;
-            mess->sender = sender;
-            mess->destination = -1;
-            mess->value = -1;
-        } 
-        // we want to send a ROUTE_REPLY message
-        else if (type == 2) {
-            mess->type = type;
-            mess->sender = sender;
-            mess->destination = destination;
-            mess->value = value;
-        } 
-        // error: we can just send ROUTE_REQ or ROUTE_REPLY messages
-        else {
-            // TODO print something for the debugging
-            return;
-        }
-	  
-	    // we send the created packet
-	    if(call AMSend.send(AM_BROADCAST_ADDR, &packet,sizeof(data_msg_t)) == SUCCESS){
-            // TODO print something fot the debugging
-  	    }
-
-    }
-
-    // TODO comments
-    event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
-	
-        if (len != sizeof(data_msg_t)) {
+        if (len != sizeof(radio_route_msg_t)) {
             return bufPtr;
         } else {
-            data_msg_t* mess = (data_msg_t*)payload;
+            radio_route_msg_t* mess = (radio_route_msg_t*) payload;
 
             // TODO in general, print something for the debugging
 
-            // we receive a ROUTE_REQ message
-            if (mess->type == 1) {
-                // TODO implement the behaviour the node should have when receiving a ROUTE_REQ
+            // we receive a data message
+            if (mess->type == 0) {
+                if (mess->destination == TOS_NODE_ID) {
+                    dbg("data", "received packet");
+
+                } else {
+
+                    radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
+
+                    if (new_mess == NULL) {
+	                    return NULL;
+	                }
+
+                    new_mess->type = 0;
+                    new_mess->sender = TOS_NODE_ID;
+                    new_mess->destination = mess->destination;
+                    new_mess->value = mess->value;
+
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+
+                    generate_send(routing_table[row][1], packet, 0);
+
+                }
+
             }
+
+            // we receive a ROUTE_REQ message
+            else if (mess->type == 1) {
+                uint16_t row = get_row_index_by_node_id(mess->node_requested);
+
+                if (mess->node_requested == TOS_NODE_ID) {
+                    radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
+                    
+                    if (new_mess == NULL) {
+	                    return NULL;
+	                }
+
+                    new_mess->type = 2;
+                    new_mess->sender = TOS_NODE_ID;
+                    new_mess->node_requested = TOS_NODE_ID;
+                    new_mess->cost = 1;
+
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+
+                    generate_send(AM_BROADCAST_ADDR, packet, 2);
+
+                } else if (routing_table[row][2] == UINT16_MAX) {
+                    radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
+
+                    if (new_mess == NULL) {
+                        return NULL;
+                    }
+
+                    new_mess->type = 1;
+                    new_mess->node_requested = mess->node_requested;
+
+                    new_mess->sender = UINT16_MAX;
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+                    new_mess->cost = UINT16_MAX;
+
+                    generate_send(AM_BROADCAST_ADDR, packet, 1);
+                } else {
+                    radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
+                    
+                    if (new_mess == NULL) {
+	                    return NULL;
+	                }
+
+                    new_mess->type = 2;
+                    new_mess->sender = TOS_NODE_ID;
+                    new_mess->node_requested = mess->node_requested;
+                    new_mess->cost = routing_table[row][2] + 1;
+
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+
+                    generate_send(AM_BROADCAST_ADDR, packet, 2);
+
+                }
+
+            }
+
             // we receive a ROUTE_REPLY message
             else if (mess->type == 2) {
-                // TODO implement the behaviour the node should have when receiving a ROUTE_REPLY
-            } 
-            // we are receiving that does not make sense
-            else {
+                uint16_t row = get_row_index_by_node_id(mess->node_requested);
+
+                if (mess->node_requested != TOS_NODE_ID && routing_table[row][2] > mess->cost) {
+                    routing_table[row][1] = mess->sender;
+                    routing_table[row][2] = mess->cost;
+
+                    radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
+                    
+                    if (new_mess == NULL) {
+                        return NULL;
+                    }
+
+                    new_mess->type = 2;
+                    new_mess->sender = TOS_NODE_ID;
+                    new_mess->node_requested = mess->node_requested;
+                    new_mess->cost = routing_table[row][2] + 1;
+
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+
+                    generate_send(AM_BROADCAST_ADDR, packet, 2);
+
+                }
+
+                if (TOS_NODE_ID == 1 && sent == FALSE) {
+                    radio_route_msg_t* data = (radio_route_msg_t*)(call Packet.getPayload(&data_packet, sizeof(radio_route_msg_t)));
+                    radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
+                        
+                    row = get_row_index_by_node_id(data->destination);
+                    
+                    if (new_mess == NULL) {
+                        return NULL;
+                    }
+
+                    new_mess->type = data->type;
+                    new_mess->sender = data->sender;
+                    new_mess->destination = data->destination;
+                    new_mess->value = data->value;
+
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+
+                    generate_send(routing_table[row][1], packet, 0);
+
+                    sent = TRUE;
+
+                }
 
             }
      
             return bufPtr;
         }
-
+	
     }
 
 }
