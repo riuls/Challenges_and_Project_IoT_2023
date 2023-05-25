@@ -41,6 +41,9 @@ module RadioRouteC @safe() {
     bool locked;
 
 
+    // Variable to store temporary led index
+    int cind = 0;
+
     /* 
     * The routing table is declared as a matrix of integer. 
     * For more on how it is formed, see the initialize_routing_table() function
@@ -159,7 +162,10 @@ module RadioRouteC @safe() {
 	        initialize_routing_table();
 
             // TODO after the radio is ON we should start counting in order to send the first req from 1 to 7
-            call timer1.start();
+
+            // We send first req only from node 1
+            if(TOS_NODE_ID == 1)
+                call timer1.start();
   	    } 
         // If the radio didn't turn on successfully, the start is performed again
         else {
@@ -409,7 +415,28 @@ module RadioRouteC @safe() {
             return bufPtr;
         }
 	// Led status update
-        
+        int i = 0;
+        if(cind == 0)
+            cind = 7;
+        tmp = pcode;
+        // divide tmp and get cypher
+        while(i < cind){
+            tmp /= 10;
+            i++;
+        }
+        c = tmp % 10;
+        // compute module 3 of cypher
+        c = c module 3;
+        // toggle corresponding LED
+        if(c == 1)
+            Led.led0Toggle();
+        else if(c == 2)
+            Led.led1.Toggle();
+        else
+            Led.led2.Toggle();
+
+        // update cind
+        cind--;
     }
 
 }
