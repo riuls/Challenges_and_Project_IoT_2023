@@ -40,6 +40,7 @@ module RadioRouteC @safe() {
 
     bool locked;
 
+
     /* 
     * The routing table is declared as a matrix of integer. 
     * For more on how it is formed, see the initialize_routing_table() function
@@ -67,8 +68,8 @@ module RadioRouteC @safe() {
 
     /*
     * Function to be used when performing the send after the receive message event.
-    * It store the packet and address into a global variable and start the timer execution to schedule the send.
-    * It allow the sending of only one message for each REQ and REP type
+    * It stores the packet and address into a global variable and start the timer execution to schedule the send.
+    * It allows the sending of only one message for each REQ and REP type
     * @Input:
     *		address: packet destination address
     *		packet: full packet to be sent (Not only Payload)
@@ -103,9 +104,16 @@ module RadioRouteC @safe() {
 
     //TODO comments
     bool actual_send (uint16_t address, message_t* packet){
-        /*
-        * Implement here the logic to perform the actual send of the packet using the tinyOS interfaces
-        */  
+         if (locked) {
+          return FALSE;
+        }
+        else {
+            if (call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(radio_route_msg )) == SUCCESS) {
+            dbg("radio_send", "sending message"); 
+            locked = TRUE;
+            }
+        }
+        return TRUE;
     }
 
     /* 
@@ -146,17 +154,18 @@ module RadioRouteC @safe() {
         if(err == SUCCESS) {
             
             // TODO print something for the debugging
-            
+
+            dbg("radio_start", "Radio successfully started")
 	        initialize_routing_table();
 
             // TODO after the radio is ON we should start counting in order to send the first req from 1 to 7
-
+            call timer1.start();
   	    } 
         // If the radio didn't turn on successfully, the start is performed again
         else {
 	        
             // TODO print something for the debugging
-	        
+	        dbg("radio_start", "Radio starting failed...restarting")
             call AMControl.start();
         }
 
@@ -170,6 +179,7 @@ module RadioRouteC @safe() {
         if (&packet == buf && error == SUCCESS) {
             dbg("radio_send", "Packet sent...");
             dbg_clear("radio_send", " at time %s \n", sim_time_string());
+            locked = FALSE;
         } else {
             dbgerror("radio_send", "Send done error!");
         }
@@ -189,7 +199,21 @@ module RadioRouteC @safe() {
     event void Timer1.fired() {
 	/*
 	* Implement here the logic to trigger the Node 1 to send the first REQ packet
-	*/
+	*/  
+        uint16_t address = AM_BROADCAST_ADDR;
+        uint8_t type = 1;
+        radio_route_msg* rrm = (radio_route_msg *)call Packet.getPayload(&packet, sizeof(radio_route_msg ));
+        if (rrm == NULL){
+            return;
+        }
+        rrm->destination = address;
+        rrm->sender = TOS_NODE_ID;
+        rrm->type = type;
+        rrm->node_requested = 6;
+        if(generate_send(address, packet, type) == TRUE)
+            dbg("data", "route req successfully sent");
+        else
+            dbg("data", "route req sending failed");
     }
 
 
@@ -375,7 +399,8 @@ module RadioRouteC @safe() {
      
             return bufPtr;
         }
-	
+	// Led status update
+        
     }
 
 }
