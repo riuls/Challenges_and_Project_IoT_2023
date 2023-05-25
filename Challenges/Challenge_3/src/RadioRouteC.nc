@@ -269,7 +269,7 @@ module RadioRouteC @safe() {
                 uint16_t row = get_row_index_by_node_id(mess->node_requested);
 
                 // If the current node is the requested node, it is generated a ROUTE_REPLY message, with the cost set to 1
-                if (mess->node_requested == TOS_NODE_ID) {
+                if (mess->node_requested == TOS_NODE_ID && route_rep_sent == FALSE) {
                     radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
                     
                     if (new_mess == NULL) {
@@ -290,7 +290,7 @@ module RadioRouteC @safe() {
                 } 
                 // The following condition means that the requested node is not initialized in routing table of the node
                 // So, it is needed to forward in broadcast the ROUTE_REQ
-                else if (routing_table[row][2] == UINT16_MAX) {
+                else if (routing_table[row][2] == UINT16_MAX && route_req_sent == FALSE) {
                     radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
 
                     if (new_mess == NULL) {
@@ -309,7 +309,7 @@ module RadioRouteC @safe() {
                     generate_send(AM_BROADCAST_ADDR, packet, 1);
                 } 
                 // The requested node is in the routing table of the current node, so it generates a ROUTE_REPLY message
-                else {
+                else if(route_rep_sent == FALSE){
                     radio_route_msg_t* new_mess = (radio_route_msg_t*)(call Packet.getPayload(&packet, sizeof(radio_route_msg_t)));
                     
                     if (new_mess == NULL) {
