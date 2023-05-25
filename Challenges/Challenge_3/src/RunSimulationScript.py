@@ -26,20 +26,22 @@ print "Initializing simulator....";
 t.init();
 
 
-#simulation_outfile = "simulation.txt";
-#print "Saving sensors simulation output to:", simulation_outfile;
+simulation_outfile = "simulation.txt";
+print "Saving sensors simulation output to:", simulation_outfile;
 #simulation_out = open(simulation_outfile, "w");
 
-#out = open(simulation_outfile, "w");
-out = sys.stdout;
+out = open(simulation_outfile, "w");
+#out = sys.stdout;
 
 #Add debug channel
 print "Activate debug message on channel init"
 t.addChannel("init",out);
 print "Activate debug message on channel boot"
 t.addChannel("boot",out);
-print "Activate debug message on channel timer"
-t.addChannel("timer",out);
+print "Activate debug message on channel timer0"
+t.addChannel("timer0",out);
+print "Activate debug message on channel timer1"
+t.addChannel("timer1",out);
 print "Activate debug message on channel led_0"
 t.addChannel("led_0",out);
 print "Activate debug message on channel led_1"
@@ -60,15 +62,48 @@ t.addChannel("radio_pack",out);
 
 print "Creating node 1...";
 node1 =t.getNode(1);
-time1 = 0*t.ticksPerSecond(); #instant at which each node should be turned on
+time1 = 0; #instant at which each node should be turned on
 node1.bootAtTime(time1);
-print ">>>Will boot at time",  time1/t.ticksPerSecond(), "[sec]";
+print ">>>Will boot at time",  time1, "[sec]";
 
 print "Creating node 2...";
 node2 = t.getNode(2);
-time2 = 0*t.ticksPerSecond();
+time2 = 0;
 node2.bootAtTime(time2);
-print ">>>Will boot at time", time2/t.ticksPerSecond(), "[sec]";
+print ">>>Will boot at time", time2, "[sec]";
+
+print "Creating node 3...";
+node3 =t.getNode(3);
+time3 = 0; #instant at which each node should be turned on
+node3.bootAtTime(time3);
+print ">>>Will boot at time",  time3, "[sec]";
+
+print "Creating node 4...";
+node4 =t.getNode(4);
+time4 = 0; #instant at which each node should be turned on
+node4.bootAtTime(time4);
+print ">>>Will boot at time",  time4, "[sec]";
+
+print "Creating node 5...";
+node5 =t.getNode(5);
+time5 = 0; #instant at which each node should be turned on
+node5.bootAtTime(time5);
+print ">>>Will boot at time",  time5, "[sec]";
+
+print "Creating node 6...";
+node6 =t.getNode(6);
+time6 = 0; #instant at which each node should be turned on
+node6.bootAtTime(time6);
+print ">>>Will boot at time",  time6, "[sec]";
+
+print "Creating node 7...";
+node7 =t.getNode(7);
+time7 = 0; #instant at which each node should be turned on
+node7.bootAtTime(time7);
+print ">>>Will boot at time",  time7, "[sec]";
+
+
+
 
 print "Creating radio channels..."
 f = open(topofile, "r");
