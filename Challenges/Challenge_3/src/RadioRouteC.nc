@@ -47,7 +47,7 @@ module RadioRouteC @safe() {
     /* 
     * The routing table is declared as a matrix of integer. 
     * For more on how it is formed, see the initialize_routing_table() function
-    /*
+    */
     uint16_t routing_table[6][3];
 
     /* 
@@ -107,13 +107,13 @@ module RadioRouteC @safe() {
 
     //TODO comments
     bool actual_send (uint16_t address, message_t* packet){
-         if (locked) {
-          return FALSE;
+        if (locked) {
+            return FALSE;
         }
         else {
             if (call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(radio_route_msg )) == SUCCESS) {
-            dbg("radio_send", "sending message"); 
-            locked = TRUE;
+                dbg("radio_send", "sending message"); 
+                locked = TRUE;
             }
         }
         return TRUE;
@@ -215,7 +215,7 @@ module RadioRouteC @safe() {
         rrm->destination = address;
         rrm->sender = TOS_NODE_ID;
         rrm->type = type;
-        rrm->node_requested = 6;
+        rrm->node_requested = 7;
         if(generate_send(address, packet, type) == TRUE)
             dbg("data", "route req successfully sent");
         else
