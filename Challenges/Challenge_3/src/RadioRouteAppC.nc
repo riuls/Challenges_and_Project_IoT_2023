@@ -4,11 +4,11 @@ configuration RadioRouteAppC {}
 
 implementation {
 
-    components MainC, RadioRouteC as App;
+    components MainC, RadioRouteC as App, LedsC;
 
     components ActiveMessageC;
-    components AMSenderC(AM_RADIO_COUNT_MSG);
-    components AMReceiverC(AM_RADIO_COUNT_MSG);
+    components new AMSenderC(AM_RADIO_COUNT_MSG);
+    components new AMReceiverC(AM_RADIO_COUNT_MSG);
 
     components new TimerMilliC() as Timer0;
     components new TimerMilliC() as Timer1;
@@ -17,8 +17,8 @@ implementation {
     App.Boot -> MainC.Boot;
 
     //Radio control
-    App.SplitControl -> AcriveMessageC;
-    App.AMSend -> AMSender;
+    App.AMControl -> ActiveMessageC;
+    App.AMSend -> AMSenderC;
     App.Packet -> AMSenderC;
     App.Receive -> AMReceiverC;
 
