@@ -246,7 +246,7 @@ module RadioRouteC @safe() {
 
         uint16_t i = 0;
         uint16_t tmp;
-        uint16_t pcode = 10372022;
+        uint32_t pcode = 10372022;
         uint16_t c;
 
         if (len != sizeof(radio_route_msg_t)) {
