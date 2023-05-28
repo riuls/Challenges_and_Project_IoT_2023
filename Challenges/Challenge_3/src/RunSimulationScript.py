@@ -12,14 +12,14 @@ from TOSSIM import *;
 t = Tossim([]);
 
 
-topofile="topology.txt";
-modelfile="meyer-heavy.txt";
+topofile = "topology.txt";
+modelfile = "meyer-heavy.txt";
 
 
 print "Initializing mac....";
 mac = t.mac();
 print "Initializing radio channels....";
-radio=t.radio();
+radio = t.radio();
 print "    using topology file:",topofile;
 print "    using noise file:",modelfile;
 print "Initializing simulator....";
@@ -56,6 +56,8 @@ print "Activate debug message on channel radio_rec"
 t.addChannel("radio_rec",out);
 print "Activate debug message on channel radio_pack"
 t.addChannel("radio_pack",out);
+print "Activate debug message on channel data exchange"
+t.addChannel("data", out)
 
 
 
@@ -148,4 +150,3 @@ for i in range(0,1200):
 	t.runNextEvent()
 	
 print "\n\n\nSimulation finished!";
-
