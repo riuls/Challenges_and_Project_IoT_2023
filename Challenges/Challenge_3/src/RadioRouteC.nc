@@ -114,7 +114,7 @@ module RadioRouteC @safe() {
         }
         else {
             if (call AMSend.send(AM_BROADCAST_ADDR, &packet, sizeof(radio_route_msg_t)) == SUCCESS) {
-                dbg("radio_send", "sending message"); 
+                dbg("radio_send","sending message"); 
                 locked = TRUE;
             }
         }
@@ -162,7 +162,7 @@ module RadioRouteC @safe() {
             
             // TODO print something for the debugging
 
-            dbg("radio_start", "Radio successfully started")
+            dbg("radio_start","Radio successfully started")
 	        initialize_routing_table();
 
             // TODO after the radio is ON we should start counting in order to send the first req from 1 to 7
@@ -175,14 +175,14 @@ module RadioRouteC @safe() {
         else {
 	        
             // TODO print something for the debugging
-	        dbg("radio_start", "Radio starting failed...restarting")
+	        dbg("radio_start","Radio starting failed...restarting")
             call AMControl.start();
         }
 
     }
 
     event void AMControl.stopDone(error_t err) {
-        dbg("boot", "Radio stopped!\n");
+        dbg("boot","Radio stopped!\n");
     }
 
     event void AMSend.sendDone(message_t* bufPtr, error_t error) {
@@ -191,11 +191,11 @@ module RadioRouteC @safe() {
 	*/ 
 
         if (&packet == bufPtr && error == SUCCESS) {
-            dbg("radio_send", "Packet sent...");
-            dbg_clear("radio_send", " at time %s \n", sim_time_string());
+            dbg("radio_send","Packet sent...");
+            dbg_clear("radio_send"," at time %s \n", sim_time_string());
             locked = FALSE;
         } else {
-            dbgerror("radio_send", "Send done error!");
+            dbgerror("radio_send","Send done error!");
         }
     }
 
@@ -225,9 +225,9 @@ module RadioRouteC @safe() {
         rrm->type = type;
         rrm->node_requested = 7;
         if(generate_send(address, &packet, type) == TRUE)
-            dbg("data", "route req successfully sent");
+            dbg("data","route req successfully sent");
         else
-            dbg("data", "route req sending failed");
+            dbg("data","route req sending failed");
     }
 
 
@@ -239,6 +239,11 @@ module RadioRouteC @safe() {
 	* Perform the packet send using the generate_send function if needed.
 	* Implement the LED logic and print LED status on Debug.
 	*/
+
+        uint16_t i = 0;
+        uint16_t tmp;
+        uint16_t pcode = 10372022;
+        uint16_t c;
 
         if (len != sizeof(radio_route_msg_t)) {
             return bufPtr;
@@ -252,7 +257,7 @@ module RadioRouteC @safe() {
 
                 // If the current node is the destination of the message, the transmission finishes
                 if (mess->destination == TOS_NODE_ID) {
-                    dbg("data", "received packet");
+                    dbg("data","received packet");
 
                 } 
                 // If it is not, the message should be forwarded to the next hop specified in the routing table
@@ -419,7 +424,6 @@ module RadioRouteC @safe() {
             return bufPtr;
         }
 	// Led status update
-        uint16_t i = 0;
 
         if(cind == 0)
             cind = 7;
@@ -432,14 +436,14 @@ module RadioRouteC @safe() {
         }
         c = tmp % 10;
         // compute module 3 of cypher
-        c = c module 3;
+        c = c % 3;
         // toggle corresponding LED
         if(c == 1)
-            Led.led0Toggle();
+            call Leds.led0Toggle();
         else if(c == 2)
-            Led.led1.Toggle();
+            call Leds.led1Toggle();
         else
-            Led.led2.Toggle();
+            call Leds.led2Toggle();
 
         // update cind
         cind--;
