@@ -57,12 +57,15 @@ module RadioRouteC @safe() {
 
         uint16_t i = 0;
 
-        for (i = 0; i < 7; i++) {
-            if (i + 1 != TOS_NODE_ID) {
-                routing_table[i][0] = i + 1;
-                routing_table[i][1] = UINT16_MAX;
-                routing_table[i][2] = UINT16_MAX;
-            }
+        for (i = 0; i < TOS_NODE_ID - 1; i++) {
+            routing_table[i][0] = i + 1;
+            routing_table[i][1] = UINT16_MAX;
+            routing_table[i][2] = UINT16_MAX;
+        }
+        for (i = TOS_NODE_ID - 1; i < 6; i++) {
+            routing_table[i][0] = i + 2;
+            routing_table[i][1] = UINT16_MAX;
+            routing_table[i][2] = UINT16_MAX;
         }
 
     }
@@ -146,6 +149,8 @@ module RadioRouteC @safe() {
     event void Boot.booted() {
 
         dbg("boot", "Application booted.\n");
+
+        initialize_routing_table();
         
         // When the device is booted, the radio is started
         call AMControl.start();
@@ -164,8 +169,6 @@ module RadioRouteC @safe() {
             // We send first req only from node 1
             if(TOS_NODE_ID == 1)
                 call Timer1.startOneShot(5000);
-            
-            initialize_routing_table();
 
             dbg("radio_start", "Routing table successfully initialized for node %u.\n", TOS_NODE_ID);
 
@@ -205,6 +208,7 @@ module RadioRouteC @safe() {
     * Timer triggered to perform the send.
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
+
         actual_send (queue_addr, &queued_packet);
     }
 
@@ -283,10 +287,8 @@ module RadioRouteC @safe() {
                     new_mess->node_requested = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
 
-                    if (routing_table[row][1] != UINT16_MAX) {
-                        // It is generated a send to the next hop specified in the routing table
-                        generate_send(routing_table[row][1], &globalpacket, 0);
-                    }
+                    // It is generated a send to the next hop specified in the routing table
+                    generate_send(routing_table[row][1], &globalpacket, 0);
 
                 }
 
@@ -378,45 +380,41 @@ module RadioRouteC @safe() {
                         return NULL;
                     }
 
-                    new_mess->type = 2;
-                    new_mess->sender = TOS_NODE_ID;
-                    new_mess->node_requested = mess->node_requested;
-                    new_mess->cost = routing_table[row][2] + 1;
+                    // If the current node is the node 1 and the data message has not been sent yet,
+                    // the transmission of the packet can be performed
+                    if (TOS_NODE_ID == 1) {
 
-                    new_mess->destination = UINT16_MAX;
-                    new_mess->value = UINT16_MAX;
+                        // In the message that will be sent, we put again the values of the fields of the data message specified
+                        // at the beginning of the execution
+                        new_mess->type = 0;
+                        new_mess->sender = 1;
+                        new_mess->destination = 7;
+                        new_mess->value = 5;
 
-                    // After the update, we broadcast the new REPLY
-                    generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
+                        new_mess->node_requested = UINT16_MAX;
+                        new_mess->cost = UINT16_MAX;
 
-                }
+                        // The message is sent to the next hop specified in the routing table to reach the desired node
+                        generate_send(routing_table[row][1], &globalpacket, 0);
 
-                // If the current node is the node 1 and the data message has not been sent yet,
-                // the transmission of the packet can be performed
-                if (TOS_NODE_ID == 1 && sent == FALSE) {
-                        
-                    row = get_row_index_by_node_id(7);
+                        // The sent flag is sent to true in order to not send again the same packet 
+                        // when the node will receive other ROUTE_REPLY 
+                        sent = TRUE;
+
+                    } else {
+
+                        new_mess->type = 2;
+                        new_mess->sender = TOS_NODE_ID;
+                        new_mess->node_requested = mess->node_requested;
+                        new_mess->cost = routing_table[row][2] + 1;
+
+                        new_mess->destination = UINT16_MAX;
+                        new_mess->value = UINT16_MAX;
                     
-                    if (new_mess == NULL) {
-                        return NULL;
+                        // After the update, we broadcast the new REPLY
+                        generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
+
                     }
-
-                    // In the message that will be sent, we put again the values of the fields of the data message specified
-                    // at the beginning of the execution
-                    new_mess->type = 0;
-                    new_mess->sender = 1;
-                    new_mess->destination = 7;
-                    new_mess->value = 5;
-
-                    new_mess->node_requested = UINT16_MAX;
-                    new_mess->cost = UINT16_MAX;
-
-                    // The message is sent to the next hop specified in the routing table to reach the desired node
-                    generate_send(routing_table[row][1], &globalpacket, 0);
-
-                    // The sent flag is sent to true in order to not send again the same packet 
-                    // when the node will receive other ROUTE_REPLY 
-                    sent = TRUE;
 
                 }
 
