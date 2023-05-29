@@ -112,7 +112,7 @@ module RadioRouteC @safe() {
         else {
             if (call AMSend.send(AM_BROADCAST_ADDR, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
                 radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(packet, sizeof(radio_route_msg_t));
-                dbg("radio_send", "Sending message of type %u from %u to %u.\n", rrm->type, rrm->sender, rrm->destination); 
+                dbg("radio_send", "Sending message of type %u from %u to %u passing by %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
                 locked = TRUE;
             }
         }
@@ -160,16 +160,15 @@ module RadioRouteC @safe() {
         if(err == SUCCESS) {
 
             dbg("radio_start", "Radio successfully started for node %u.\n", TOS_NODE_ID);
-            
-            initialize_routing_table();
-
-            dbg("radio_start", "Routing table successfully started for node %u.\n", TOS_NODE_ID);
-
-            // TODO after the radio is ON we should start counting in order to send the first req from 1 to 7
 
             // We send first req only from node 1
             if(TOS_NODE_ID == 1)
                 call Timer1.startOneShot(5000);
+            
+            initialize_routing_table();
+
+            dbg("radio_start", "Routing table successfully initialized for node %u.\n", TOS_NODE_ID);
+
         } 
         // If the radio didn't turn on successfully, the start is performed again
         else {
@@ -190,7 +189,7 @@ module RadioRouteC @safe() {
     *  Check if the packet is sent 
     */ 
 
-        if (&globalpacket == bufPtr && error == SUCCESS) {
+        if (error == SUCCESS) {
             dbg("radio_send", "Packet sent...");
             dbg_clear("radio_send", " at time %s \n", sim_time_string());
             locked = FALSE;
@@ -214,20 +213,21 @@ module RadioRouteC @safe() {
     */
     event void Timer1.fired() {
       
-        uint16_t address = AM_BROADCAST_ADDR;
-        uint8_t type = 1;
         radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&globalpacket, sizeof(radio_route_msg_t));
         
         if (rrm == NULL){
             return;
         }
         
-        rrm->destination = address;
-        rrm->sender = TOS_NODE_ID;
-        rrm->type = type;
+        rrm->type = 1;
         rrm->node_requested = 7;
 
-        if(generate_send(address, &globalpacket, type) == TRUE)
+        rrm->sender = TOS_NODE_ID;
+        rrm->destination = UINT16_MAX;
+        rrm->value = UINT16_MAX;
+        rrm->cost = UINT16_MAX;
+    
+        if(generate_send(AM_BROADCAST_ADDR, &globalpacket, 1) == TRUE)
             dbg("data", "SUCCESS: message of type %u sent from %u to %u requesting the node %u\n", rrm->type, rrm->sender, rrm->destination, rrm->node_requested);
         else
             dbg("data", "FAILURE: message of type %u NOT sent from %u to %u requesting the node %u\n", rrm->type, rrm->sender, rrm->destination, rrm->node_requested);
@@ -256,6 +256,8 @@ module RadioRouteC @safe() {
             radio_route_msg_t* new_mess = (radio_route_msg_t*)call Packet.getPayload(&globalpacket, sizeof(radio_route_msg_t));
             uint16_t row = 0;
 
+            dbg("radio_rec", "Received a message of type %u.\n", mess->type);
+
             // It is received a data message
             if (mess->type == 0) {
 
@@ -271,18 +273,20 @@ module RadioRouteC @safe() {
                         return NULL;
                     }
 
-                    row = get_row_index_by_node_id(7);
+                    row = get_row_index_by_node_id(mess->destination);
 
                     new_mess->type = 0;
                     new_mess->sender = TOS_NODE_ID;
                     new_mess->destination = mess->destination;
                     new_mess->value = mess->value;
 
-                    new_mess->destination = UINT16_MAX;
+                    new_mess->node_requested = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
 
-                    // It is generated a send to the next hop specified in the routing table
-                    generate_send(routing_table[row][1], &globalpacket, 0);
+                    if (routing_table[row][1] != UINT16_MAX) {
+                        // It is generated a send to the next hop specified in the routing table
+                        generate_send(routing_table[row][1], &globalpacket, 0);
+                    }
 
                 }
 
@@ -322,7 +326,7 @@ module RadioRouteC @safe() {
                     new_mess->type = 1;
                     new_mess->node_requested = mess->node_requested;
 
-                    new_mess->sender = UINT16_MAX;
+                    new_mess->sender = TOS_NODE_ID;
                     new_mess->destination = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
                     new_mess->cost = UINT16_MAX;
@@ -364,9 +368,11 @@ module RadioRouteC @safe() {
                 // we are receiving now from the reply.
                 // Notice that this check also includes the case in which the node is not initialized in the routing table
                 // since we used the UINT16_MAX as value for initialized variables.
-                if (mess->node_requested != TOS_NODE_ID && routing_table[row][2] > mess->cost) {
+                if (mess->node_requested != TOS_NODE_ID && (routing_table[row][2] > mess->cost || routing_table[row][2] == UINT16_MAX)) {
                     routing_table[row][1] = mess->sender;
                     routing_table[row][2] = mess->cost;
+
+                    dbg("radio_rec", "Updated routing table of node %u:\n\tNode: %u\t\tNext hop: %u\t\tCost: %u.\n", TOS_NODE_ID, mess->node_requested, routing_table[row][1], routing_table[row][2]);
                     
                     if (new_mess == NULL) {
                         return NULL;
