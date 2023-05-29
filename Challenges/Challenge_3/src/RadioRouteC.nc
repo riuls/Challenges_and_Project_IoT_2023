@@ -194,7 +194,11 @@ module RadioRouteC @safe() {
     */ 
 
         if (error == SUCCESS) {
+<<<<<<< HEAD
             dbg("radio_send", "Packet sent from %u",TOS_NODE_ID);
+=======
+            dbg("radio_send", "Packet sent...");
+>>>>>>> main
             dbg_clear("radio_send", " at time %s \n", sim_time_string());
             locked = FALSE;
         } else {
@@ -228,7 +232,11 @@ module RadioRouteC @safe() {
         rrm->node_requested = 7;
 
         rrm->sender = TOS_NODE_ID;
+<<<<<<< HEAD
         rrm->destination = AM_BROADCAST_ADDR;
+=======
+        rrm->destination = UINT16_MAX;
+>>>>>>> main
         rrm->value = UINT16_MAX;
         rrm->cost = UINT16_MAX;
     
@@ -301,7 +309,11 @@ module RadioRouteC @safe() {
             radio_route_msg_t* new_mess = (radio_route_msg_t*)call Packet.getPayload(&globalpacket, sizeof(radio_route_msg_t));
             uint16_t row = 0;
 
+<<<<<<< HEAD
             dbg("radio_rec", "%u Received a message of type %u.\n",TOS_NODE_ID,mess->type);
+=======
+            dbg("radio_rec", "Received a message of type %u.\n", mess->type);
+>>>>>>> main
 
             // It is received a data message
             if (mess->type == 0) {
