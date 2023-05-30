@@ -38,22 +38,16 @@ print "Activate debug message on channel init"
 t.addChannel("init", out)
 print "Activate debug message on channel boot"
 t.addChannel("boot", out)
-print "Activate debug message on channel timer0"
-t.addChannel("timer0", out)
 print "Activate debug message on channel timer1"
-t.addChannel("led_2", out)
+t.addChannel("timer1", out)
 print "Activate debug message on channel radio"
 t.addChannel("radio", out)
 print "Activate debug message on channel radio_send"
 t.addChannel("radio_send", out)
 print "Activate debug message on channel radio_rec"
 t.addChannel("radio_rec", out)
-print "Activate debug message on channel radio_pack"
-t.addChannel("radio_pack", out)
-print "Activate debug message on channel data exchange"
-t.addChannel("data", out)
-print "Activate debug message on channel Leds"
-t.addChannel("Leds", out)
+print "Activate debug message on channel leds"
+t.addChannel("leds", out)
 
 
 print "Creating node 1..."

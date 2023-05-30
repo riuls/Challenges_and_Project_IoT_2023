@@ -26,9 +26,6 @@ module RadioRouteC @safe() {
     message_t queued_packet;
     uint16_t queue_addr;
 
-    // Variable to not send more than once the data message
-    bool sent = FALSE;
-
     // Time delay in milli seconds
     uint16_t time_delays[7] = {61,173,267,371,479,583,689};
 
@@ -37,15 +34,20 @@ module RadioRouteC @safe() {
 
     bool locked;
 
-    // Variable to store temporary led index and person code
-    uint16_t i_start = 7;
-    uint32_t pcode = 10372022;
-
     /* 
     * The routing table is declared as a matrix of integer. 
     * For more on how it is formed, see the initialize_routing_table() function
     */
     uint16_t routing_table[6][3];
+
+    // Variable to not send more than once the data message
+    bool sent = FALSE;
+
+    // Variable to store temporary led index and person code
+    uint16_t i_start = 7;
+    uint32_t pcode = 10372022;
+
+
 
     /* 
     * Each node will have its table initialized when the device is started.
@@ -98,7 +100,6 @@ module RadioRouteC @safe() {
                 queued_packet = *packet;
                 queue_addr = address;
             } else if (type == 0) {
-                dbg ("radio_rec", "SENDING A TYPE 0 MESSAGE TO %u.\n", address);
                 call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
                 queued_packet = *packet;
                 queue_addr = address;   
@@ -112,15 +113,20 @@ module RadioRouteC @safe() {
     bool actual_send (uint16_t address, message_t* packet){
         
         if (locked) {
+
             return FALSE;
+        
         }
         else {
+
             if (call AMSend.send(address, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
                 radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(packet, sizeof(radio_route_msg_t));
-                dbg("radio_send", "Sending message of type %u from %u to %u passing by %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                dbg("radio_send", "[RADIO_SEND] Sending message of type %u from %u to %u passing by %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
                 locked = TRUE;
             }
+
         }
+
         return TRUE;
 
     }
@@ -150,9 +156,10 @@ module RadioRouteC @safe() {
     //***************** Boot interface ********************//
     event void Boot.booted() {
 
-        dbg("boot", "Application booted.\n");
+        dbg("boot", "[BOOT] Application booted for node %u.\n", TOS_NODE_ID);
 
         initialize_routing_table();
+        dbg("init", "[INIT] Routing table initialized for node %u.\n", TOS_NODE_ID);
         
         // When the device is booted, the radio is started
         call AMControl.start();
@@ -166,40 +173,45 @@ module RadioRouteC @safe() {
         // If the radio is correctly turned on, the routing table of the node is initialized
         if(err == SUCCESS) {
 
-            dbg("radio_start", "Radio successfully started for node %u.\n", TOS_NODE_ID);
+            dbg("radio", "[RADIO] Radio successfully started for node %u.\n", TOS_NODE_ID);
 
             // We send first req only from node 1
             if(TOS_NODE_ID == 1)
                 call Timer1.startOneShot(5000);
-
-            dbg("radio_start", "Routing table successfully initialized for node %u.\n", TOS_NODE_ID);
 
         } 
         // If the radio didn't turn on successfully, the start is performed again
         else {
             
             // TODO print something for the debugging
-            dbg("radio_start", "Radio starting failed for node %u...restarting\n", TOS_NODE_ID);
+            dbg("radio", "[RADIO] Radio starting failed for node %u...restarting.\n", TOS_NODE_ID);
             call AMControl.start();
         }
 
     }
 
     event void AMControl.stopDone(error_t err) {
-        dbg("boot", "Radio stopped!\n");
-    }
 
-    event void AMSend.sendDone(message_t* bufPtr, error_t error) {
+        dbg("radio", "[RADIO] Radio stopped for node %u.\n", TOS_NODE_ID);
+
+    }
+    
+
+    //***************** AMSend interface ******************//
     /* This event is triggered when a message is sent 
     *  Check if the packet is sent 
-    */ 
+    */
+    event void AMSend.sendDone(message_t* bufPtr, error_t error) {
 
         if (error == SUCCESS) {
-            dbg("radio_send", "Packet sent from %u",TOS_NODE_ID);
-            dbg_clear("radio_send", " at time %s \n", sim_time_string());
+
+            dbg("radio_send", "[RADIO_SEND] Packet sent from %u at time %s.\n", TOS_NODE_ID, sim_time_string());
             locked = FALSE;
+
         } else {
-            dbgerror("radio_send", "Send done error!\n");
+
+            dbgerror("radio_send", "[RADIO_SEND] Send done error for node %u!\n", TOS_NODE_ID);
+
         }
     }
 
@@ -221,6 +233,8 @@ module RadioRouteC @safe() {
       
         radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(&globalpacket, sizeof(radio_route_msg_t));
         
+        dbg("timer1", "[TIMER1] Timer fired out.\n");
+        
         if (rrm == NULL){
             return;
         }
@@ -233,10 +247,7 @@ module RadioRouteC @safe() {
         rrm->value = UINT16_MAX;
         rrm->cost = UINT16_MAX;
     
-        if(generate_send(AM_BROADCAST_ADDR, &globalpacket, 1) == TRUE)
-            dbg("data", "SUCCESS: message of type %u sent from %u to %u requesting the node %u\n", rrm->type, rrm->sender, rrm->destination, rrm->node_requested);
-        else
-            dbg("data", "FAILURE: message of type %u NOT sent from %u to %u requesting the node %u\n", rrm->type, rrm->sender, rrm->destination, rrm->node_requested);
+        generate_send(AM_BROADCAST_ADDR, &globalpacket, 1);
     
     }
 
@@ -269,20 +280,20 @@ module RadioRouteC @safe() {
         c = tmp % 10;
         if(c >= 3)
             c = c % 3;
-        dbg("Leds", "tmp = % u, c = %u \n",tmp,c);
+        dbg("leds", "tmp = % u, c = %u \n",tmp,c);
             
         // toggle corresponding LED
         if(c == 1){
             call Leds.led1Toggle();
-            dbg("Leds", "Leds : LED 1 toggled at node %u \n",TOS_NODE_ID);
+            dbg("leds", "Leds : LED 1 toggled at node %u \n",TOS_NODE_ID);
         }
         else if(c == 2){
             call Leds.led2Toggle();
-            dbg("Leds", "Leds : LED 2 toggled at node %u \n",TOS_NODE_ID);
+            dbg("leds", "Leds : LED 2 toggled at node %u \n",TOS_NODE_ID);
         }
         else{
             call Leds.led0Toggle();
-            dbg("Leds", "Leds : LED 0 toggled at node %u \n",TOS_NODE_ID);
+            dbg("leds", "Leds : LED 0 toggled at node %u \n",TOS_NODE_ID);
         }
 
         
@@ -304,10 +315,10 @@ module RadioRouteC @safe() {
             radio_route_msg_t* new_mess = (radio_route_msg_t*)call Packet.getPayload(&globalpacket, sizeof(radio_route_msg_t));
             uint16_t row = 0;
 
-            dbg("radio_rec", "Received a message of type %u.\n", mess->type);
+            dbg("radio_rec", "[RADIO_REC] Received a message of type %u.\n", mess->type);
 
             if (new_mess == NULL) {
-                dbgerror("radio_rec", "ERROR WHEN RECEIVING, IDK\n");
+                dbgerror("radio_rec", "[RADIO_REC] ERROR WHEN RECEIVING, IDK.\n");
                 return bufPtr;
             }
 
@@ -316,7 +327,7 @@ module RadioRouteC @safe() {
                 if (TOS_NODE_ID == 7) {
 
                     // WE'RE DONE
-                    dbg ("radio_rec", "I am NODE 7 and I received THAT PACKET with value %u. We're done!\n", mess->value);
+                    dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type, mess->value);
 
                 } else {
 
@@ -422,8 +433,6 @@ module RadioRouteC @safe() {
 
                             new_mess->node_requested = UINT16_MAX;
                             new_mess->cost = UINT16_MAX;
-
-                            dbg ("radio_rec", "SENDING A MESSAGE OF TYPE 0 TO %u WITH VALUE %u.\n", routing_table[row][1], new_mess->value);
                             
                             generate_send(routing_table[row][1], &globalpacket, 0);
 
