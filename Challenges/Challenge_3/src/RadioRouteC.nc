@@ -98,6 +98,7 @@ module RadioRouteC @safe() {
                 queued_packet = *packet;
                 queue_addr = address;
             } else if (type == 0) {
+                dbg ("radio_rec", "SENDING A TYPE 0 MESSAGE TO %u.\n", address);
                 call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
                 queued_packet = *packet;
                 queue_addr = address;   
@@ -114,7 +115,7 @@ module RadioRouteC @safe() {
             return FALSE;
         }
         else {
-            if (call AMSend.send(AM_BROADCAST_ADDR, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
+            if (call AMSend.send(address, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
                 radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(packet, sizeof(radio_route_msg_t));
                 dbg("radio_send", "Sending message of type %u from %u to %u passing by %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
                 locked = TRUE;
@@ -194,11 +195,7 @@ module RadioRouteC @safe() {
     */ 
 
         if (error == SUCCESS) {
-<<<<<<< HEAD
             dbg("radio_send", "Packet sent from %u",TOS_NODE_ID);
-=======
-            dbg("radio_send", "Packet sent...");
->>>>>>> main
             dbg_clear("radio_send", " at time %s \n", sim_time_string());
             locked = FALSE;
         } else {
@@ -232,11 +229,7 @@ module RadioRouteC @safe() {
         rrm->node_requested = 7;
 
         rrm->sender = TOS_NODE_ID;
-<<<<<<< HEAD
         rrm->destination = AM_BROADCAST_ADDR;
-=======
-        rrm->destination = UINT16_MAX;
->>>>>>> main
         rrm->value = UINT16_MAX;
         rrm->cost = UINT16_MAX;
     
@@ -265,6 +258,7 @@ module RadioRouteC @safe() {
         // For every i value from 7 to 0, divide person code by 10 for i times, get the remainder and compute the module 3
         // of the value; afterwise toggle the lED corresponding to the computed module
     
+        /*
         tmp = pcode;
         i = i_start;
         while(i > 0){
@@ -298,38 +292,35 @@ module RadioRouteC @safe() {
         else
             i_start--;
         
-        
+        */
         
         // Parsing the received packet and performing tasks
 
         if (len != sizeof(radio_route_msg_t)) {
             return bufPtr;
         } else {
+
             radio_route_msg_t* mess = (radio_route_msg_t*) payload;
             radio_route_msg_t* new_mess = (radio_route_msg_t*)call Packet.getPayload(&globalpacket, sizeof(radio_route_msg_t));
             uint16_t row = 0;
 
-<<<<<<< HEAD
-            dbg("radio_rec", "%u Received a message of type %u.\n",TOS_NODE_ID,mess->type);
-=======
             dbg("radio_rec", "Received a message of type %u.\n", mess->type);
->>>>>>> main
 
-            // It is received a data message
+            if (new_mess == NULL) {
+                dbgerror("radio_rec", "ERROR WHEN RECEIVING, IDK\n");
+                return bufPtr;
+            }
+
             if (mess->type == 0) {
 
-                // If the current node is the destination of the message, the transmission finishes
-                if (mess->destination == TOS_NODE_ID) {
-                    dbg("data", "Received THAT packet\n");
+                if (TOS_NODE_ID == 7) {
 
-                } 
-                // If it is not, the message should be forwarded to the next hop specified in the routing table
-                else {
+                    // WE'RE DONE
+                    dbg ("radio_rec", "I am NODE 7 and I received THAT PACKET with value %u. We're done!\n", mess->value);
 
-                    if (new_mess == NULL) {
-                        return NULL;
-                    }
+                } else {
 
+                    // FORWARD TO THE NEXT HOP SPECIFIED IN THE ROUTING TABLE
                     row = get_row_index_by_node_id(mess->destination);
 
                     new_mess->type = 0;
@@ -338,7 +329,7 @@ module RadioRouteC @safe() {
                     new_mess->value = mess->value;
 
                     new_mess->node_requested = UINT16_MAX;
-                    new_mess->value = UINT16_MAX;
+                    new_mess->cost = UINT16_MAX;
 
                     // It is generated a send to the next hop specified in the routing table
                     generate_send(routing_table[row][1], &globalpacket, 0);
@@ -346,18 +337,27 @@ module RadioRouteC @safe() {
                 }
 
             }
+            
+            if (mess->type == 1) {
 
-            // It is received a ROUTE_REQ message
-            else if (mess->type == 1) {
                 row = get_row_index_by_node_id(mess->node_requested);
 
-                // If the current node is the requested node, it is generated a ROUTE_REPLY message, with the cost set to 1. 
-                if (mess->node_requested == TOS_NODE_ID) {
-                    
-                    if (new_mess == NULL) {
-                        return NULL;
-                    }
+                if (mess->node_requested != TOS_NODE_ID && routing_table[row][1] == UINT16_MAX) {
 
+                    // BROADCAST A NEW ROUTE REQ MESSAGE
+                    new_mess->type = 1;
+                    new_mess->node_requested = mess->node_requested;
+
+                    new_mess->sender = TOS_NODE_ID;
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->cost = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+
+                    generate_send(AM_BROADCAST_ADDR, &globalpacket, 1);
+
+                } else if (mess->node_requested == TOS_NODE_ID) {
+
+                    // BROADCAST A ROUTE REPLY WITH COST SET TO 1
                     new_mess->type = 2;
                     new_mess->sender = TOS_NODE_ID;
                     new_mess->node_requested = TOS_NODE_ID;
@@ -366,105 +366,71 @@ module RadioRouteC @safe() {
                     new_mess->destination = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
 
-                    // The message is sent in broadcast
                     generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
 
-                } 
-                // The following condition means that the requested node is not initialized in routing table of the node
-                // So, it is needed to forward in broadcast the ROUTE_REQ
-                else if (routing_table[row][2] == UINT16_MAX) {
-
-                    if (new_mess == NULL) {
-                        return NULL;
-                    }
-
-                    new_mess->type = 1;
-                    new_mess->node_requested = mess->node_requested;
-
-                    new_mess->sender = TOS_NODE_ID;
-                    new_mess->destination = UINT16_MAX;
-                    new_mess->value = UINT16_MAX;
-                    new_mess->cost = UINT16_MAX;
-
-                    // The message is sent in broadcast
-                    generate_send(AM_BROADCAST_ADDR, &globalpacket, 1);
-
-                } 
-                // The requested node is in the routing table of the current node, so it generates a ROUTE_REPLY message
-                else{
+                } else if (routing_table[row][1] != UINT16_MAX) {
                     
-                    if (new_mess == NULL) {
-                        return NULL;
-                    }
-
+                    // BROADCAST A ROUTE REPLY WITH COST SET TO THE ONE IN THE RT + 1
                     new_mess->type = 2;
                     new_mess->sender = TOS_NODE_ID;
                     new_mess->node_requested = mess->node_requested;
-                    // The cost to reach the requested node is set to the cost set in the routing table +1
                     new_mess->cost = routing_table[row][2] + 1;
 
                     new_mess->destination = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
 
-                    // The message is sent in broadcast
                     generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
-
 
                 }
 
             }
 
-            // It is received a ROUTE_REPLY message
-            else if (mess->type == 2) {
+            if (mess->type == 2) {
+
                 row = get_row_index_by_node_id(mess->node_requested);
 
-                // We need to modify the routing table if we are not the requested node and 
-                // if in the routing table we have a cost to reach node that is higher than the one
-                // we are receiving now from the reply.
-                // Notice that this check also includes the case in which the node is not initialized in the routing table
-                // since we used the UINT16_MAX as value for initialized variables.
-                if (mess->node_requested != TOS_NODE_ID && (routing_table[row][2] > mess->cost || routing_table[row][2] == UINT16_MAX)) {
+                if (mess->node_requested == TOS_NODE_ID) {
+
+                    // DO NOTHING
+
+                } else if (routing_table[row][1] == UINT16_MAX || mess->cost < routing_table[row][2]) {
+
+                    // UPDATE THE ROUTING TABLE
                     routing_table[row][1] = mess->sender;
                     routing_table[row][2] = mess->cost;
 
-                    dbg("radio_rec", "Updated routing table of node %u:\n\tNode: %u\t\tNext hop: %u\t\tCost: %u.\n", TOS_NODE_ID, mess->node_requested, routing_table[row][1], routing_table[row][2]);
-                    
-                    if (new_mess == NULL) {
-                        return NULL;
-                    }
+                    // BROADCAST THE ROUTE REPLY BY INCREMENTING THE COST BY 1
+                    new_mess->type = 2;
+                    new_mess->sender = TOS_NODE_ID;
+                    new_mess->node_requested = mess->node_requested;
+                    new_mess->cost = routing_table[row][2] + 1;
 
-                    // If the current node is the node 1 and the data message has not been sent yet,
-                    // the transmission of the packet can be performed
+                    new_mess->destination = UINT16_MAX;
+                    new_mess->value = UINT16_MAX;
+                    
                     if (TOS_NODE_ID == 1) {
 
-                        // In the message that will be sent, we put again the values of the fields of the data message specified
-                        // at the beginning of the execution
-                        new_mess->type = 0;
-                        new_mess->sender = 1;
-                        new_mess->destination = 7;
-                        new_mess->value = 5;
+                        if (sent == FALSE) {
 
-                        new_mess->node_requested = UINT16_MAX;
-                        new_mess->cost = UINT16_MAX;
+                            sent = TRUE;
+                        
+                            // SEND A NEW DATA MESSAGE IF NODE 1 IS RECEIVING A ROUTE REPLY
+                            new_mess->type = 0;
+                            new_mess->sender = TOS_NODE_ID;
+                            new_mess->destination = 7;
+                            new_mess->value = 5;
 
-                        // The message is sent to the next hop specified in the routing table to reach the desired node
-                        generate_send(routing_table[row][1], &globalpacket, 0);
+                            new_mess->node_requested = UINT16_MAX;
+                            new_mess->cost = UINT16_MAX;
 
-                        // The sent flag is sent to true in order to not send again the same packet 
-                        // when the node will receive other ROUTE_REPLY 
-                        sent = TRUE;
+                            dbg ("radio_rec", "SENDING A MESSAGE OF TYPE 0 TO %u WITH VALUE %u.\n", routing_table[row][1], new_mess->value);
+                            
+                            generate_send(routing_table[row][1], &globalpacket, 0);
 
+                        }
+                    
                     } else {
 
-                        new_mess->type = 2;
-                        new_mess->sender = TOS_NODE_ID;
-                        new_mess->node_requested = mess->node_requested;
-                        new_mess->cost = routing_table[row][2] + 1;
-
-                        new_mess->destination = UINT16_MAX;
-                        new_mess->value = UINT16_MAX;
-                    
-                        // After the update, we broadcast the new REPLY
                         generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
 
                     }

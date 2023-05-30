@@ -1,4 +1,4 @@
-int "********************************************"
+print "********************************************"
 print "*                                          *"
 print "*             TOSSIM Script                *"
 print "*                                          *"
@@ -41,12 +41,6 @@ t.addChannel("boot", out)
 print "Activate debug message on channel timer0"
 t.addChannel("timer0", out)
 print "Activate debug message on channel timer1"
-t.addChannel("timer1", out)
-print "Activate debug message on channel led_0"
-t.addChannel("led_0", out)
-print "Activate debug message on channel led_1"
-t.addChannel("led_1", out)
-print "Activate debug message on channel led_2"
 t.addChannel("led_2", out)
 print "Activate debug message on channel radio"
 t.addChannel("radio", out)
@@ -60,8 +54,6 @@ print "Activate debug message on channel data exchange"
 t.addChannel("data", out)
 print "Activate debug message on channel Leds"
 t.addChannel("Leds", out)
-print "Activate debug message on channel hey"
-t.addChannel("hey", out)
 
 
 print "Creating node 1..."
@@ -149,11 +141,4 @@ print "Start simulation with TOSSIM! \n\n\n"
 for i in range(0, 2400):
     t.runNextEvent()
 
-<<<<<<< HEAD
 print "\n\n\nSimulation finished!"
-=======
-for i in range(0,2400):
-	t.runNextEvent()
-	
-print "\n\n\nSimulation finished!";
->>>>>>> main
