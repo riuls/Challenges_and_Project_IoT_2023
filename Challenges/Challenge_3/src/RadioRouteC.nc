@@ -133,8 +133,7 @@ module RadioRouteC @safe() {
 
     /* 
     * Since the routing table contains all the nodes of the network except for the node itself,
-    * this function is used to get the row in which they are next hop and cost to reach the desired node
-    * given in input (node_id)
+    * this function is used to get the row in which a desired node is put.
     */
     uint16_t get_row_index_by_node_id(uint16_t node_id) {
         
@@ -170,7 +169,7 @@ module RadioRouteC @safe() {
     //*************** AMControl interface *****************//
     event void AMControl.startDone(error_t err) {
         
-        // If the radio is correctly turned on, the routing table of the node is initialized
+        // If the radio is correctly turned on, Timer1 starts
         if(err == SUCCESS) {
 
             dbg("radio", "[RADIO] Radio successfully started for node %u.\n", TOS_NODE_ID);
@@ -239,6 +238,7 @@ module RadioRouteC @safe() {
             return;
         }
         
+        // When Timer1 fires out, the node sends a ROUTE_REQ message, requesting information about node 7
         rrm->type = 1;
         rrm->node_requested = 7;
 
@@ -247,6 +247,7 @@ module RadioRouteC @safe() {
         rrm->value = UINT16_MAX;
         rrm->cost = UINT16_MAX;
     
+        // The ROUTE_REQ is sent in broadcast to the other nodes connected to the sender
         generate_send(AM_BROADCAST_ADDR, &globalpacket, 1);
     
     }
@@ -304,32 +305,37 @@ module RadioRouteC @safe() {
             i_start--;
         
         */
-        
-        // Parsing the received packet and performing tasks
 
         if (len != sizeof(radio_route_msg_t)) {
             return bufPtr;
         } else {
 
+            // Variable that contains the payload of the received message
             radio_route_msg_t* mess = (radio_route_msg_t*) payload;
+            // Variable that will contain the payload of the message that will be sent
             radio_route_msg_t* new_mess = (radio_route_msg_t*)call Packet.getPayload(&globalpacket, sizeof(radio_route_msg_t));
+            // Variable used to get the row in which the desired node is located in the routing table
             uint16_t row = 0;
 
             dbg("radio_rec", "[RADIO_REC] Received a message of type %u.\n", mess->type);
 
             if (new_mess == NULL) {
-                dbgerror("radio_rec", "[RADIO_REC] ERROR WHEN RECEIVING, IDK.\n");
+                dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
                 return bufPtr;
             }
 
+            // A data message is received
             if (mess->type == 0) {
 
+                // If the current node is node 7, that is the destination of the data message, we don't need to forward packets anymore
                 if (TOS_NODE_ID == 7) {
 
                     // WE'RE DONE
                     dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type, mess->value);
 
-                } else {
+                } 
+                // Otherwise, the message needs to be forwarded
+                else {
 
                     // FORWARD TO THE NEXT HOP SPECIFIED IN THE ROUTING TABLE
                     row = get_row_index_by_node_id(mess->destination);
@@ -349,13 +355,16 @@ module RadioRouteC @safe() {
 
             }
             
+            // A ROUTE_REQ is received
             if (mess->type == 1) {
 
                 row = get_row_index_by_node_id(mess->node_requested);
 
+                // If the current node is not the destination of the ROUTE_REQ and it has not initialized the row
+                // corresponding to the requested node, we broadcast a new route request
                 if (mess->node_requested != TOS_NODE_ID && routing_table[row][1] == UINT16_MAX) {
 
-                    // BROADCAST A NEW ROUTE REQ MESSAGE
+                    // BROADCAST A NEW ROUTE_REQ MESSAGE
                     new_mess->type = 1;
                     new_mess->node_requested = mess->node_requested;
 
@@ -364,11 +373,14 @@ module RadioRouteC @safe() {
                     new_mess->cost = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
 
+                    // The ROUTE_REQ is sent in broadcast to the other nodes connected to the sender
                     generate_send(AM_BROADCAST_ADDR, &globalpacket, 1);
 
-                } else if (mess->node_requested == TOS_NODE_ID) {
+                } 
+                // If the current node is the requested node, we broadcast a route reply
+                else if (mess->node_requested == TOS_NODE_ID) {
 
-                    // BROADCAST A ROUTE REPLY WITH COST SET TO 1
+                    // BROADCAST A ROUTE_REPLY WITH COST SET TO 1
                     new_mess->type = 2;
                     new_mess->sender = TOS_NODE_ID;
                     new_mess->node_requested = TOS_NODE_ID;
@@ -377,11 +389,15 @@ module RadioRouteC @safe() {
                     new_mess->destination = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
 
+                    // The ROUTE_REPLY is sent in broadcast to the other nodes connected to the sender
                     generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
 
-                } else if (routing_table[row][1] != UINT16_MAX) {
+                } 
+                // If we are not the requested node but the we have a path to reach the requested node,
+                // we broacast a route reply
+                else if (routing_table[row][1] != UINT16_MAX) {
                     
-                    // BROADCAST A ROUTE REPLY WITH COST SET TO THE ONE IN THE RT + 1
+                    // BROADCAST A ROUTE REPLY WITH COST SET TO THE ONE IN THE ROUTING TABLE + 1
                     new_mess->type = 2;
                     new_mess->sender = TOS_NODE_ID;
                     new_mess->node_requested = mess->node_requested;
@@ -390,21 +406,27 @@ module RadioRouteC @safe() {
                     new_mess->destination = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
 
+                    // The ROUTE_REPLY is sent in broadcast to the other nodes connected to the sender
                     generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
 
                 }
 
             }
 
+            // A ROUTE_REPLY is received
             if (mess->type == 2) {
 
                 row = get_row_index_by_node_id(mess->node_requested);
 
+                // If we are the requested node, we do nothing
                 if (mess->node_requested == TOS_NODE_ID) {
 
                     // DO NOTHING
 
-                } else if (routing_table[row][1] == UINT16_MAX || mess->cost < routing_table[row][2]) {
+                } 
+                // If we are not the requested node, if we can update the current node's routing table, we do it.
+                // Then we broadcast the new cost to the other connected nodes
+                else if (routing_table[row][1] == UINT16_MAX || mess->cost < routing_table[row][2]) {
 
                     // UPDATE THE ROUTING TABLE
                     routing_table[row][1] = mess->sender;
@@ -419,8 +441,10 @@ module RadioRouteC @safe() {
                     new_mess->destination = UINT16_MAX;
                     new_mess->value = UINT16_MAX;
                     
+                    // If the current node is node 1, we can start sending the data message destinated to node 7
                     if (TOS_NODE_ID == 1) {
 
+                        // This check is performed in order to send the data message just once
                         if (sent == FALSE) {
 
                             sent = TRUE;
@@ -434,12 +458,16 @@ module RadioRouteC @safe() {
                             new_mess->node_requested = UINT16_MAX;
                             new_mess->cost = UINT16_MAX;
                             
+                            // It is generated a send to the next hop specified in the routing table
                             generate_send(routing_table[row][1], &globalpacket, 0);
 
                         }
                     
-                    } else {
+                    } 
+                    // If the current node is not node 1, we broadcast the route reply
+                    else {
 
+                        // The ROUTE_REPLY is sent in broadcast to the other nodes connected to the sender
                         generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
 
                     }
