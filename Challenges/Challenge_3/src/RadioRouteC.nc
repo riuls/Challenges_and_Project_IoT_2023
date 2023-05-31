@@ -55,6 +55,8 @@ module RadioRouteC @safe() {
     * except for self references, checked with the TOS_NODE_ID.
     * Finally, both the next hop column and the cost column are set to UINT16_MAX, that means that
     * the values are not initialized.
+    * @Input: no input needed
+    * @Output: nothing is returned by tge function
     */
     void initialize_routing_table() {
 
@@ -109,15 +111,17 @@ module RadioRouteC @safe() {
         return TRUE;
     }
 
-    /* actual_send checks if another message is being sent and in case it is not then it calls
-     AMSend.send to send the new message received as pointer packet. Variable locked is used
-     for the check: if it is TRUE it means that a message is being sent and FALSE value is 
-     returned, if it is FALSE then no message is being sent and a TRUE value is returned
-    @Input : address: packet destination address
-             packet: packet to be sent (not only payload)
-    @Output : boolean variable: it is TRUE when message could be sent, FALSE otherwise
+    /* 
+    * actual_send checks if another message is being sent and in case it is not then it calls
+    * AMSend.send to send the new message received as pointer packet. Variable locked is used
+    * for the check: if it is TRUE it means that a message is being sent and FALSE value is 
+    * returned, if it is FALSE then no message is being sent and a TRUE value is returned
+    * @Input: 
+    *       address: packet destination address
+    *       packet: packet to be sent (not only payload)
+    * @Output: 
+    *       boolean variable: it is TRUE when message could be sent, FALSE otherwise
     */
-    
     bool actual_send (uint16_t address, message_t* packet){
         
         if (locked) {
@@ -142,6 +146,10 @@ module RadioRouteC @safe() {
     /* 
     * Since the routing table contains all the nodes of the network except for the node itself,
     * this function is used to get the row in which a desired node is put.
+    * @Input:
+    *       node_id: is the id of the node for which we want to obtain the corresponding row in the routing table
+    * @Output:
+    *       it is returned the row where it is stored information about the desired node specified in input
     */
     uint16_t get_row_index_by_node_id(uint16_t node_id) {
         
