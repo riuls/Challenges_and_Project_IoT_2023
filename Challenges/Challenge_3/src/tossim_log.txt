@@ -1,0 +1,123 @@
+DEBUG (1): [BOOT] Application booted for node 1.
+DEBUG (1): [INIT] Routing table initialized for node 1.
+DEBUG (7): [BOOT] Application booted for node 7.
+DEBUG (7): [INIT] Routing table initialized for node 7.
+DEBUG (3): [BOOT] Application booted for node 3.
+DEBUG (3): [INIT] Routing table initialized for node 3.
+DEBUG (6): [BOOT] Application booted for node 6.
+DEBUG (6): [INIT] Routing table initialized for node 6.
+DEBUG (2): [BOOT] Application booted for node 2.
+DEBUG (2): [INIT] Routing table initialized for node 2.
+DEBUG (5): [BOOT] Application booted for node 5.
+DEBUG (5): [INIT] Routing table initialized for node 5.
+DEBUG (4): [BOOT] Application booted for node 4.
+DEBUG (4): [INIT] Routing table initialized for node 4.
+DEBUG (7): [RADIO] Radio successfully started for node 7.
+DEBUG (6): [RADIO] Radio successfully started for node 6.
+DEBUG (1): [RADIO] Radio successfully started for node 1.
+DEBUG (3): [RADIO] Radio successfully started for node 3.
+DEBUG (4): [RADIO] Radio successfully started for node 4.
+DEBUG (2): [RADIO] Radio successfully started for node 2.
+DEBUG (5): [RADIO] Radio successfully started for node 5.
+DEBUG (1): [TIMER1] Timer fired out.
+DEBUG (1): [RADIO_SEND] Sending message of type 1 from 1 to 65535 passing by 65535.
+DEBUG (3): Leds : LED 1 toggled at node 3 
+DEBUG (3): [RADIO_REC] Received a message of type 1.
+DEBUG (2): Leds : LED 1 toggled at node 2 
+DEBUG (2): [RADIO_REC] Received a message of type 1.
+DEBUG (1): [RADIO_SEND] Packet sent from 1 at time 0:0:4.945190423.
+DEBUG (2): [RADIO_SEND] Sending message of type 1 from 2 to 65535 passing by 65535.
+DEBUG (4): Leds : LED 1 toggled at node 4 
+DEBUG (4): [RADIO_REC] Received a message of type 1.
+DEBUG (1): Leds : LED 1 toggled at node 1 
+DEBUG (1): [RADIO_REC] Received a message of type 1.
+DEBUG (2): [RADIO_SEND] Packet sent from 2 at time 0:0:5.117263780.
+DEBUG (3): [RADIO_SEND] Sending message of type 1 from 3 to 65535 passing by 65535.
+DEBUG (5): Leds : LED 1 toggled at node 5 
+DEBUG (5): [RADIO_REC] Received a message of type 1.
+DEBUG (4): Leds : LED 0 toggled at node 4 
+DEBUG (4): [RADIO_REC] Received a message of type 1.
+DEBUG (1): Leds : LED 0 toggled at node 1 
+DEBUG (1): [RADIO_REC] Received a message of type 1.
+DEBUG (3): [RADIO_SEND] Packet sent from 3 at time 0:0:5.207244870.
+DEBUG (4): [RADIO_SEND] Sending message of type 1 from 4 to 65535 passing by 65535.
+DEBUG (6): Leds : LED 1 toggled at node 6 
+DEBUG (6): [RADIO_REC] Received a message of type 1.
+DEBUG (3): Leds : LED 0 toggled at node 3 
+DEBUG (3): [RADIO_REC] Received a message of type 1.
+DEBUG (2): Leds : LED 0 toggled at node 2 
+DEBUG (2): [RADIO_REC] Received a message of type 1.
+DEBUG (4): [RADIO_SEND] Packet sent from 4 at time 0:0:5.488922068.
+DEBUG (5): [RADIO_SEND] Sending message of type 1 from 5 to 65535 passing by 65535.
+DEBUG (7): Leds : LED 1 toggled at node 7 
+DEBUG (7): [RADIO_REC] Received a message of type 1.
+DEBUG (6): Leds : LED 0 toggled at node 6 
+DEBUG (6): [RADIO_REC] Received a message of type 1.
+DEBUG (3): Leds : LED 0 toggled at node 3 
+DEBUG (3): [RADIO_REC] Received a message of type 1.
+DEBUG (5): [RADIO_SEND] Packet sent from 5 at time 0:0:5.683090171.
+DEBUG (6): [RADIO_SEND] Sending message of type 1 from 6 to 65535 passing by 65535.
+DEBUG (7): Leds : LED 0 toggled at node 7 
+DEBUG (7): [RADIO_REC] Received a message of type 1.
+DEBUG (5): Leds : LED 0 toggled at node 5 
+DEBUG (5): [RADIO_REC] Received a message of type 1.
+DEBUG (4): Leds : LED 0 toggled at node 4 
+DEBUG (4): [RADIO_REC] Received a message of type 1.
+DEBUG (6): [RADIO_SEND] Packet sent from 6 at time 0:0:6.063858005.
+DEBUG (7): [RADIO_SEND] Sending message of type 2 from 7 to 65535 passing by 65535.
+DEBUG (6): Leds : LED 0 toggled at node 6 
+DEBUG (6): [RADIO_REC] Received a message of type 2.
+DEBUG (5): Leds : LED 0 toggled at node 5 
+DEBUG (5): [RADIO_REC] Received a message of type 2.
+DEBUG (7): [RADIO_SEND] Packet sent from 7 at time 0:0:6.362869229.
+DEBUG (5): [RADIO_SEND] Sending message of type 2 from 5 to 65535 passing by 65535.
+DEBUG (7): Leds : LED 0 toggled at node 7 
+DEBUG (7): [RADIO_REC] Received a message of type 2.
+DEBUG (6): Leds : LED 1 toggled at node 6 
+DEBUG (6): [RADIO_REC] Received a message of type 2.
+DEBUG (3): Leds : LED 1 toggled at node 3 
+DEBUG (3): [RADIO_REC] Received a message of type 2.
+DEBUG (5): [RADIO_SEND] Packet sent from 5 at time 0:0:6.832672114.
+DEBUG (6): [RADIO_SEND] Sending message of type 2 from 6 to 65535 passing by 65535.
+DEBUG (7): Leds : LED 1 toggled at node 7 
+DEBUG (7): [RADIO_REC] Received a message of type 2.
+DEBUG (5): Leds : LED 1 toggled at node 5 
+DEBUG (5): [RADIO_REC] Received a message of type 2.
+DEBUG (4): Leds : LED 1 toggled at node 4 
+DEBUG (4): [RADIO_REC] Received a message of type 2.
+DEBUG (6): [RADIO_SEND] Packet sent from 6 at time 0:0:6.934646598.
+DEBUG (3): [RADIO_SEND] Sending message of type 2 from 3 to 65535 passing by 65535.
+DEBUG (5): Leds : LED 2 toggled at node 5 
+DEBUG (5): [RADIO_REC] Received a message of type 2.
+DEBUG (4): Leds : LED 2 toggled at node 4 
+DEBUG (4): [RADIO_REC] Received a message of type 2.
+DEBUG (1): Leds : LED 0 toggled at node 1 
+DEBUG (1): [RADIO_REC] Received a message of type 2.
+DEBUG (3): [RADIO_SEND] Packet sent from 3 at time 0:0:7.102783154.
+DEBUG (1): [RADIO_SEND] Sending message of type 0 from 1 to 7 passing by 3.
+DEBUG (3): Leds : LED 2 toggled at node 3 
+DEBUG (3): [RADIO_REC] Received a message of type 0.
+DEBUG (1): [RADIO_SEND] Packet sent from 1 at time 0:0:7.164443966.
+DEBUG (4): [RADIO_SEND] Sending message of type 2 from 4 to 65535 passing by 65535.
+DEBUG (6): Leds : LED 2 toggled at node 6 
+DEBUG (6): [RADIO_REC] Received a message of type 2.
+DEBUG (3): Leds : LED 0 toggled at node 3 
+DEBUG (3): [RADIO_REC] Received a message of type 2.
+DEBUG (2): Leds : LED 0 toggled at node 2 
+DEBUG (2): [RADIO_REC] Received a message of type 2.
+DEBUG (4): [RADIO_SEND] Packet sent from 4 at time 0:0:7.304046593.
+DEBUG (3): [RADIO_SEND] Sending message of type 0 from 3 to 7 passing by 5.
+DEBUG (5): Leds : LED 0 toggled at node 5 
+DEBUG (5): [RADIO_REC] Received a message of type 0.
+DEBUG (3): [RADIO_SEND] Packet sent from 3 at time 0:0:7.426788328.
+DEBUG (2): [RADIO_SEND] Sending message of type 2 from 2 to 65535 passing by 65535.
+DEBUG (4): Leds : LED 0 toggled at node 4 
+DEBUG (4): [RADIO_REC] Received a message of type 2.
+DEBUG (1): Leds : LED 1 toggled at node 1 
+DEBUG (1): [RADIO_REC] Received a message of type 2.
+DEBUG (2): [RADIO_SEND] Packet sent from 2 at time 0:0:7.481643634.
+DEBUG (5): [RADIO_SEND] Sending message of type 0 from 5 to 7 passing by 7.
+DEBUG (7): Leds : LED 2 toggled at node 7 
+DEBUG (7): [RADIO_REC] Received a message of type 0.
+DEBUG (7): [RADIO_REC] HERE IT IS NODE 7 AND I RECEIVED THE PACKET OF TYPE 0 WITH VALUE 5. WE'RE DONE!
+DEBUG (5): [RADIO_SEND] Packet sent from 5 at time 0:0:7.900268525.
