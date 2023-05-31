@@ -360,7 +360,7 @@ module RadioRouteC @safe() {
 
                 row = get_row_index_by_node_id(mess->node_requested);
 
-                // If the current node is not the destination of the ROUTE_REQ and it has not initialized the row
+                // If the current node is not the requested node of the ROUTE_REQ and it has not initialized the row
                 // corresponding to the requested node, we broadcast a new route request
                 if (mess->node_requested != TOS_NODE_ID && routing_table[row][1] == UINT16_MAX) {
 
@@ -431,15 +431,6 @@ module RadioRouteC @safe() {
                     // UPDATE THE ROUTING TABLE
                     routing_table[row][1] = mess->sender;
                     routing_table[row][2] = mess->cost;
-
-                    // BROADCAST THE ROUTE REPLY BY INCREMENTING THE COST BY 1
-                    new_mess->type = 2;
-                    new_mess->sender = TOS_NODE_ID;
-                    new_mess->node_requested = mess->node_requested;
-                    new_mess->cost = routing_table[row][2] + 1;
-
-                    new_mess->destination = UINT16_MAX;
-                    new_mess->value = UINT16_MAX;
                     
                     // If the current node is node 1, we can start sending the data message destinated to node 7
                     if (TOS_NODE_ID == 1) {
@@ -466,6 +457,15 @@ module RadioRouteC @safe() {
                     } 
                     // If the current node is not node 1, we broadcast the route reply
                     else {
+
+                        // BROADCAST THE ROUTE REPLY BY INCREMENTING THE COST BY 1
+                        new_mess->type = 2;
+                        new_mess->sender = TOS_NODE_ID;
+                        new_mess->node_requested = mess->node_requested;
+                        new_mess->cost = routing_table[row][2] + 1;
+
+                        new_mess->destination = UINT16_MAX;
+                        new_mess->value = UINT16_MAX;
 
                         // The ROUTE_REPLY is sent in broadcast to the other nodes connected to the sender
                         generate_send(AM_BROADCAST_ADDR, &globalpacket, 2);
