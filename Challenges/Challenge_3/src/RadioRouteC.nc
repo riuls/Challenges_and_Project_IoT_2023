@@ -115,6 +115,7 @@ module RadioRouteC @safe() {
      returned, if it is FALSE then no message is being sent and a TRUE value is returned
     @Input : address: packet destination address
              packet: packet to be sent (not only payload)
+    @Output : boolean variable: it is TRUE when message could be sent, FALSE otherwise
     */
     
     bool actual_send (uint16_t address, message_t* packet){
