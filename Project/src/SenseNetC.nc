@@ -1,15 +1,22 @@
 #include "Timer.h"
 #include "SenseNet.h"
+#define LIST_SIZE 128
 
 /**
- * Implementation of the SenseNet application with TOSSIM debug. SenseNet includes 8 nodes connected through a Radio interface, the first five are sensor and periodically transmit random data, while the other two are gateways which receive and forward the data to the last node which acts as a network server : it transmits the data to a Node-Red and an MQTT server and it sends an ACK to the correspondent gateway. The Network Server node also eliminates dup-ACKS. The sensor nodes retransmit the data if an ACK is not received in a 1ms window from the sending.
+ * Implementation of the SenseNet application with TOSSIM debug. 
+ * SenseNet includes 8 nodes connected through a Radio interface, 
+ * the first five are sensor and periodically transmit random data, 
+ * while the other two are gateways which receive and forward the data to the last node which acts as a network server: 
+ * it transmits the data to a Node-Red and an MQTT server and it sends an ACK to the correspondent gateway. 
+ * The Network Server node also eliminates dup-ACKS. 
+ * The sensor nodes retransmit the data if an ACK is not received in a 1ms window from the sending.
  *
  * @author Mario Cela
  * @author Riaz Luis Ahmed
  * @date   July 25 2023
  */
 
-module RadioRouteC @safe() {
+module SenseNetC @safe() {
 
     uses {
         interface Boot;
@@ -26,44 +33,32 @@ module RadioRouteC @safe() {
 
 } implementation {
 
+    // Time delay in milli seconds
+    uint16_t time_delays[8] = {40, 60, 45, 50, 55, 30, 30, 75};
+
     message_t packet;
 
     // Variables to store the message to send
     message_t queued_packet;
     uint16_t queue_addr;
 
+    list_msg list_of_messages[LIST_SIZE];
+
     bool data_msg_sent = FALSE;
     bool ack_sent = FALSE;
 
     bool locked;
 
-    
-    
 
-    /* 
-    * Each node will have its table initialized when the device is started.
-    * In particular, all the nodes that we know do belong to the network are inserted into the table,
-    * except for self references, checked with the TOS_NODE_ID.
-    * Finally, both the next hop column and the cost column are set to UINT16_MAX, that means that
-    * the values are not initialized.
-    * @Input: no input needed
-    * @Output: nothing is returned by tge function
-    */
-    void initialize_routing_table() {
 
+    // TODO: comments
+    void initialize_message_list() {
         uint16_t i = 0;
 
-        for (i = 0; i < TOS_NODE_ID - 1; i++) {
-            routing_table[i][0] = i + 1;
-            routing_table[i][1] = UINT16_MAX;
-            routing_table[i][2] = UINT16_MAX;
+        for (i = 0; i < LIST_SIZE; i++) {
+            list_of_messages[i].sense_msg = NULL;
+            list_of_messages[i].ack_received = FALSE;
         }
-        for (i = TOS_NODE_ID - 1; i < 6; i++) {
-            routing_table[i][0] = i + 2;
-            routing_table[i][1] = UINT16_MAX;
-            routing_table[i][2] = UINT16_MAX;
-        }
-
     }
 
     /*
@@ -92,10 +87,13 @@ module RadioRouteC @safe() {
                 call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
                 queued_packet = *packet;
                 queue_addr = address;
-        }
+            }
 
         return TRUE;
+
+        }
     }
+
     /* 
     * actual_send checks if another message is being sent and in case it is not then it calls
     * AMSend.send to send the new message received as pointer packet. Variable locked is used
@@ -158,8 +156,7 @@ module RadioRouteC @safe() {
 
         dbg("boot", "[BOOT] Application booted for node %u.\n", TOS_NODE_ID);
 
-        initialize_routing_table();
-        dbg("init", "[INIT] Routing table initialized for node %u.\n", TOS_NODE_ID);
+        initialize_message_list();
         
         // When the device is booted, the radio is started
         call AMControl.start();
@@ -263,5 +260,7 @@ module RadioRouteC @safe() {
       If Gateway parse ACK message and forward to the destination sensor.
       If Sensor Node don't do anything
     */
+
+    }
 
 }
