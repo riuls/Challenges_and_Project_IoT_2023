@@ -1,6 +1,7 @@
 #include "Timer.h"
 #include "SenseNet.h"
 #define LIST_SIZE 128
+#define DIM_GATEWAYS 2
 
 /**
  * Implementation of the SenseNet application with TOSSIM debug. 
@@ -25,6 +26,7 @@ module SenseNetC @safe() {
         interface Packet;
         interface AMSend;
         interface Receive;
+        interface Random;
 
         // Common timer instance
         interface Timer<TMilli> as Timer0;
@@ -38,11 +40,19 @@ module SenseNetC @safe() {
 
     message_t packet;
 
+    // Variable for message counter
+    uint16_t msg_count = 0;
+
     // Variables to store the message to send
     message_t queued_packet;
-    uint16_t queue_addr;
+    uint16_t queue_addr[DIM_GATEWAYS];
 
-    list_msg list_of_messages[LIST_SIZE];
+    // Variables for memory in Sensors and Server
+    /* Implementation with array has some critical aspects to be reviewed 
+    Sensor_list_msg Server_messages[LIST_SIZE]; */
+    Server_list_msg Sensor_messages[LIST_SIZE]; 
+    Server_list_msg Next_free_slot = 0;
+
 
     bool data_msg_sent = FALSE;
     bool ack_sent = FALSE;
@@ -52,12 +62,22 @@ module SenseNetC @safe() {
 
 
     // TODO: comments
-    void initialize_message_list() {
+    void initialize_Sensor_message_list() {
         uint16_t i = 0;
 
         for (i = 0; i < LIST_SIZE; i++) {
-            list_of_messages[i].sense_msg = NULL;
-            list_of_messages[i].ack_received = FALSE;
+            Sensor_messages[i].sense_msg = NULL;
+            Sensor_messages[i].ack_received = FALSE;
+        }
+    }
+
+    // Implementation of list to keep track which gateway forwarded each packet
+    void initialize_Server_message_list() {
+        uint16_t i = 0;
+
+        for (i = 0; i < LIST_SIZE; i++) {
+            Server_messages[i].sense_msg = NULL;
+            Server_messages[i].gateway = NULL; // gateway is a type integer 16 bytes
         }
     }
 
@@ -72,21 +92,33 @@ module SenseNetC @safe() {
     *
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-    bool generate_send (uint16_t address, message_t* packet, uint8_t type){
+    bool generate_send (uint16_t* address, message_t* packet, uint8_t type){
 
         if (call Timer0.isRunning()) {
             return FALSE;
         } else {
-            if (type == 0 && !data_msg_sent) {
-                data_msg_sent = TRUE;
-                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                queued_packet = *packet;
-                queue_addr = address;
-            } else if (type == 1 && !ack_sent) {
-                data_msg_sent = TRUE;
-                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                queued_packet = *packet;
-                queue_addr = address;
+            if(TOS_NODE_ID > 1 && TOS_NODE_ID <= 4){
+                if (type == 0 && !data_msg_sent) {
+                    data_msg_sent = TRUE;
+                    call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+                    queued_packet = *packet;
+                    queue_addr[0] = address[0];
+                    queue_addr[1] = address[1];
+                } else 
+                    // Generate error message
+                }                
+            }else{
+                if (type == 1 && !data_msg_sent) {
+                    data_msg_sent = TRUE;
+                    call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+                    queued_packet = *packet;
+                    queue_addr = address[0];
+                } else if (type == 1 && !ack_sent) {
+                    data_msg_sent = TRUE;
+                    call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+                    queued_packet = *packet;
+                    queue_addr = address[0];
+                }
             }
 
         return TRUE;
@@ -105,26 +137,33 @@ module SenseNetC @safe() {
     * @Output: 
     *       boolean variable: it is TRUE when message could be sent, FALSE otherwise
     */
-    bool actual_send (uint16_t address, message_t* packet){
-        
+    bool actual_send (uint16_t* address, message_t* packet){
+        uint16_t address1, address2;
+        address1 = address[0];
+        address2 = address[1];
         if (locked) {
 
             return FALSE;
         
         }
-        else {
-
-            if (call AMSend.send(address, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
-                radio_route_msg_t* rrm = (radio_route_msg_t*)call Packet.getPayload(packet, sizeof(radio_route_msg_t));
-                dbg("radio_send", "[RADIO_SEND] Sending message of type %u from %u to %u passing by %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
-                locked = TRUE;
-            }
-
-        }
+        else 
+            if(TOS_NODE_ID > 1 && TOS_NODE_ID <= 4){
+                if (call AMSend.send(address1, packet, sizeof(sense_msg_t)) == SUCCESS && call AMSend.send(address2, packet, sizeof(sense_msg_t)) == SUCCESS) {
+                    sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+                    //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways 1 and 2.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                    locked = TRUE;
+                }else
+                    // Generate error message
+            }else{
+                if (call AMSend.send(call AMSend.send(address1, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
+                    sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+                    //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                    locked = TRUE;
+                }else
+                    // Generate error message
 
         return TRUE;
 
-    }
 
     /* 
     * Since the routing table contains all the nodes of the network except for the node itself,
@@ -156,7 +195,9 @@ module SenseNetC @safe() {
 
         dbg("boot", "[BOOT] Application booted for node %u.\n", TOS_NODE_ID);
 
-        initialize_message_list();
+        initialize_Sensor_message_list();
+        /* Implementation with array has some critical aspects to be reviewed 
+        initialize_Server_message_list();  */
         
         // When the device is booted, the radio is started
         call AMControl.start();
@@ -240,16 +281,22 @@ module SenseNetC @safe() {
     generate_send(GATEWAY_ADDRESS, &packet, 1);
     */
     event void Timer1.fired() {
-    
+        // An array is defined to contain both addresses of the gateways, in order to be able to send multiple packets
+        uint16_t addr[DIM_GATEWAYS]; 
         // a pointer to packet (message_t variable) is declared and assigned to rrm  
-        radio_route_msg_t* payload = (radio_route_msg_t*)call Packet.getPayload(&packet, sizeof(radio_route_msg_t));
+        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
         
         dbg("timer1", "[TIMER1] Timer fired out.\n");
-        
-        
+        payload_p->type = 0;
+        payload_p->msg_id = msg_count;
+        msg_count++;
+        payload_p->data = call Random.rand16(); // Generate random integer
+        payload_p->sender = TOS_NODE_ID;
+        payload_p->destination = 8;
+        addr[0] = 6;
+        addr[1] = 7;
        
-        // generate_send(AM_BROADCAST_ADDR, &globalpacket, 1);
-    
+        generate_send(addr, &packet, 0);
     }
 
 
@@ -259,8 +306,65 @@ module SenseNetC @safe() {
     * If Network Server Parse the receive packet, implement functions and call generate_send with the ACK message packet and the ADDRESS of the destination sensor.
       If Gateway parse ACK message and forward to the destination sensor.
       If Sensor Node don't do anything
-    */
+    */  
+        uint16_t gateway_addr;
+        if (len != sizeof(radio_route_msg_t)) {
+            return bufPtr;
+        } else {
 
+            // Variable that contains the payload of the received message
+            sense_msg_t* mess = (sense_msg_t*) payload;
+
+            dbg("radio_rec", "[RADIO_REC] Received a message of type %u.\n", mess->type);
+
+            if (new_mess == NULL) {
+                dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
+                return bufPtr;
+            }
+
+        if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
+            if(mess->type == 0){
+
+            }else if(mess->type == 1){
+
+            }
+        }else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
+            if(mess->type == 0){
+            }else if(mess->type == 1){
+
+            }           
+        }else if(TOS_NODE_ID == 8){
+            if(mess->type == 0){
+                // Functions implementation
+
+                // DUP ACK suppression and ACK sending
+                dup = 0;
+                for(i = 0; i < LIST_SIZE; i++)
+                    /*
+                    Implementation of Server_messages with array has some critical aspects to be reviewed
+                    
+                    if(mess->msg_id == Server_messages[i].sense_msg)
+                        dup = 1;
+                    else{
+                        Server_messages[Next_free_slot] = mess->msg_id; // Next_free_slot is freed as soon as Timer3 is fired. Timer3 starts when ACK is sent.
+                        gateway_addr = Server_messages[i].gateway;
+                        */
+                    }
+                if(!dup){
+                    // Variable that will contain the payload of the message that will be sent
+                    sense_msg_t* new_mess = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
+                    payload_p->type = 1;
+                    payload_p->msg_id = msg_count;
+                    msg_count++;
+                    payload_p->data = call Random.rand16(); // Generate random integer
+                    payload_p->sender = TOS_NODE_ID;
+                    payload_p->destination = 8;
+                    addr[0] = gateway_addr;
+                    addr[1] = 128 // A random address is put in addr[1] since it's not used;
+                    generate_send(addr, &packet, 1);
+                }
+
+            }else if(mess->type == 1)
+                //generate error message
+        }
     }
-
-}
