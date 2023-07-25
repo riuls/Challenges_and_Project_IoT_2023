@@ -8,7 +8,7 @@ typedef nx_struct msg {
   nx_uint16_t sender;
   nx_uint16_t destination;
   nx_uint16_t gateway;
-} msg_t;
+} payload_t;
 
 enum {
   AM_RADIO_COUNT_MSG = 10,
