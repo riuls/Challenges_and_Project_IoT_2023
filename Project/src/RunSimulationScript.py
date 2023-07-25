@@ -62,7 +62,6 @@ print "Activate debug message on channel leds"
 t.addChannel("leds", out)
 
 
-# TODO: modify this section for the initialization of the nodes of the network
 
 print "Creating node 1..."
 node1 = t.getNode(1)
@@ -106,6 +105,12 @@ time7 = 0  # instant at which each node should be turned on
 node7.bootAtTime(time7)
 print ">>>Will boot at time", time7, "[sec]"
 
+print "Creating node 8..."
+node8 = t.getNode(8)
+time8 = 0  # instant at which each node should be turned on
+node8.bootAtTime(time8)
+print ">>>Will boot at time", time8, "[sec]"
+
 
 print "Creating radio channels..."
 f = open(topofile, "r")
@@ -140,8 +145,7 @@ for line in lines:
             t.getNode(i).addNoiseTraceReading(val)
 print "Done!"
 
-# TODO: modify the value of the range depending on the number of nodes of the network
-for i in range(1, 8):
+for i in range(1, 9):
     print ">>>Creating noise model for node:", i;
     t.getNode(i).createNoiseModel()
 
