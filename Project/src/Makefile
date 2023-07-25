@@ -1,4 +1,4 @@
-COMPONENT=???AppC
+COMPONENT=SenseNetAppC
 
 include $(MAKERULES)
 
