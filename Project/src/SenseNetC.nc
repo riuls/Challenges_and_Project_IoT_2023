@@ -1,7 +1,5 @@
 #include "Timer.h"
 #include "SenseNet.h"
-#define LIST_SIZE 128
-#define DIM_GATEWAYS 2
 
 /**
  * Implementation of the SenseNet application with TOSSIM debug. 
@@ -47,11 +45,8 @@ module SenseNetC @safe() {
     message_t queued_packet;
     uint16_t queue_addr[DIM_GATEWAYS];
 
-    // Variables for memory in Sensors and Server
-    /* Implementation with array has some critical aspects to be reviewed 
-    Sensor_list_msg Server_messages[LIST_SIZE]; */
-    Server_list_msg Sensor_messages[LIST_SIZE]; 
-    Server_list_msg Next_free_slot = 0;
+    // Variable for storing sender gateway address
+    uint16_t sender_gateway;
 
 
     bool data_msg_sent = FALSE;
@@ -92,38 +87,24 @@ module SenseNetC @safe() {
     *
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-    bool generate_send (uint16_t* address, message_t* packet, uint8_t type){
+    bool generate_send (message_t* packet, uint8_t type){
 
         if (call Timer0.isRunning()) {
             return FALSE;
-        } else {
-            if(TOS_NODE_ID > 1 && TOS_NODE_ID <= 4){
-                if (type == 0 && !data_msg_sent) {
-                    data_msg_sent = TRUE;
-                    call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                    queued_packet = *packet;
-                    queue_addr[0] = address[0];
-                    queue_addr[1] = address[1];
-                } else 
-                    // Generate error message
-                }                
-            }else{
-                if (type == 1 && !data_msg_sent) {
-                    data_msg_sent = TRUE;
-                    call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                    queued_packet = *packet;
-                    queue_addr = address[0];
-                } else if (type == 1 && !ack_sent) {
-                    data_msg_sent = TRUE;
-                    call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                    queued_packet = *packet;
-                    queue_addr = address[0];
-                }
+        } else{
+            if (type == 0 && !data_msg_sent) {
+                data_msg_sent = TRUE;
+                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+                queued_packet = *packet;
+            } else if(type == 1 && !ack_sent){
+                ack_sent = TRUE;
+                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+                queued_packet = *packet;                
             }
-
+        }
+                            
         return TRUE;
 
-        }
     }
 
     /* 
@@ -139,28 +120,79 @@ module SenseNetC @safe() {
     */
     bool actual_send (uint16_t* address, message_t* packet){
         uint16_t address1, address2;
-        address1 = address[0];
-        address2 = address[1];
         if (locked) {
 
             return FALSE;
         
-        }
-        else 
+        }else{
+            sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
             if(TOS_NODE_ID > 1 && TOS_NODE_ID <= 4){
+                address1 = 6;
+                address2 = 7;
+                payload_p->destination = address1;
+                if (call AMSend.send(address1, packet, sizeof(sense_msg_t)) == SUCCESS) {
+                    //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways 1 and 2.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                    locked = TRUE;
+                }else{
+                    // Generate error message
+                }
+                payload_p->destination = address2;
+                if (call AMSend.send(address2, packet, sizeof(sense_msg_t)) == SUCCESS) {
+                    //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways 1 and 2.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                    locked = TRUE;
+                }else{
+                    // Generate error message
+                }                
+            }else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
+                payload_p->destination = SERVER_NODE;
+                if(payload_p->type == 0){
+                    address1 = SERVER_NODE;
+                    if (call AMSend.send(call AMSend.send(address1, packet, sizeof(radio_route_msg_t)) == SUCCESS){
+                        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+                        //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                        locked = TRUE;
+                    }else{
+                        // Generate error message                   
+                    }
+                }else{
+                    address1 = payload_p->destination;
+                    if (call AMSend.send(call AMSend.send(address1, packet, sizeof(radio_route_msg_t)) == SUCCESS){
+                        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+                        //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                        locked = TRUE;
+                    }else{
+                        // Generate error message                   
+                    }                    
+                }
+            }else if(TOS_NODE_ID == 1){
+                address1 = 6;
+                payload_p->destination = address1;
                 if (call AMSend.send(address1, packet, sizeof(sense_msg_t)) == SUCCESS && call AMSend.send(address2, packet, sizeof(sense_msg_t)) == SUCCESS) {
                     sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
                     //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways 1 and 2.\n", rrm->type, rrm->sender, rrm->destination, address); 
                     locked = TRUE;
                 }else
-                    // Generate error message
-            }else{
-                if (call AMSend.send(call AMSend.send(address1, packet, sizeof(radio_route_msg_t)) == SUCCESS) {
+                    // Generate error message               
+            }else if(TOS_NODE_ID == 5){
+                address1 = 7;
+                payload_p->destination = address2;
+                if (call AMSend.send(address1, packet, sizeof(sense_msg_t)) == SUCCESS && call AMSend.send(address2, packet, sizeof(sense_msg_t)) == SUCCESS) {
                     sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
-                    //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways %u.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                    //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways 1 and 2.\n", rrm->type, rrm->sender, rrm->destination, address); 
                     locked = TRUE;
                 }else
-                    // Generate error message
+                    // Generate error message  
+            }else{
+                address1 = payload_p->sender;
+                if (call AMSend.send(address1, packet, sizeof(sense_msg_t)) == SUCCESS && call AMSend.send(address2, packet, sizeof(sense_msg_t)) == SUCCESS) {
+                    sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+                    //dbg("radio_send", "[RADIO_SEND] Sending message of type node %u from %u to %u passing by gateways 1 and 2.\n", rrm->type, rrm->sender, rrm->destination, address); 
+                    locked = TRUE;
+                }else
+                    // Generate error message                  
+            }
+
+        } 
 
         return TRUE;
 
@@ -292,10 +324,6 @@ module SenseNetC @safe() {
         msg_count++;
         payload_p->data = call Random.rand16(); // Generate random integer
         payload_p->sender = TOS_NODE_ID;
-        payload_p->destination = 8;
-        addr[0] = 6;
-        addr[1] = 7;
-       
         generate_send(addr, &packet, 0);
     }
 
@@ -338,32 +366,7 @@ module SenseNetC @safe() {
                 // Functions implementation
 
                 // DUP ACK suppression and ACK sending
-                dup = 0;
-                for(i = 0; i < LIST_SIZE; i++)
-                    /*
-                    Implementation of Server_messages with array has some critical aspects to be reviewed
-                    
-                    if(mess->msg_id == Server_messages[i].sense_msg)
-                        dup = 1;
-                    else{
-                        Server_messages[Next_free_slot] = mess->msg_id; // Next_free_slot is freed as soon as Timer3 is fired. Timer3 starts when ACK is sent.
-                        gateway_addr = Server_messages[i].gateway;
-                        */
-                    }
-                if(!dup){
-                    // Variable that will contain the payload of the message that will be sent
-                    sense_msg_t* new_mess = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
-                    payload_p->type = 1;
-                    payload_p->msg_id = msg_count;
-                    msg_count++;
-                    payload_p->data = call Random.rand16(); // Generate random integer
-                    payload_p->sender = TOS_NODE_ID;
-                    payload_p->destination = 8;
-                    addr[0] = gateway_addr;
-                    addr[1] = 128 // A random address is put in addr[1] since it's not used;
-                    generate_send(addr, &packet, 1);
-                }
-
+                
             }else if(mess->type == 1)
                 //generate error message
         }

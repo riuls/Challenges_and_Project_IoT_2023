@@ -1,5 +1,9 @@
 #ifndef SENSE_NET_H
 #define SENSE_NET_H
+#define LIST_SIZE 128
+#define SENSOR_NODES 5
+#define GATEWAY_NODES 2
+#define SERVER_NODE 8
 
 typedef nx_struct sense_msg {
   nx_uint8_t type;  // Data type is defined 0 for data messages and 1 for ACK messages
