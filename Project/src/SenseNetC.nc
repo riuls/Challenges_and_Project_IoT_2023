@@ -29,6 +29,7 @@ module SenseNetC @safe() {
         // Common timer instance
         interface Timer<TMilli> as Timer0;
         interface Timer<TMilli> as Timer1;
+        interface Timer<TMilli> as Timer2;
     }
 
 } implementation {
@@ -44,10 +45,7 @@ module SenseNetC @safe() {
     // Variable for storing sender gateway address
     uint16_t sender_gateway;
 
-
-    bool data_msg_sent = FALSE;
-    bool ack_sent = FALSE;
-
+    // Variable for storing radio interface occupation status
     bool locked;
 
 
@@ -91,7 +89,7 @@ module SenseNetC @safe() {
     * 
     * Function to be used when performing the send after the receive message event.
     * It stores the packet and address into a global variable and start the timer execution to schedule the send.
-    * It allows the sending of only one message for each REQ and REP type
+    * It allows to send only one packet at a time (one packet at a time is sent in the channel)
     * @Input:
     *       address: packet destination address
     *       packet: full packet to be sent (Not only Payload)
@@ -99,20 +97,13 @@ module SenseNetC @safe() {
     *
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-    bool generate_send (message_t* packet, uint8_t type){
+    bool generate_send (message_t* packet){
 
         if (call Timer0.isRunning()) {
             return FALSE;
         } else {
-            if (type == 0 && !data_msg_sent) {
-                data_msg_sent = TRUE;
-                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                queued_packet = *packet;
-            } else if (type == 1 && !ack_sent) {
-                ack_sent = TRUE;
-                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                queued_packet = *packet;                
-            }
+            call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+            queued_packet = *packet;
         }
                             
         return TRUE;
@@ -124,15 +115,16 @@ module SenseNetC @safe() {
     * 
     * actual_send checks if another message is being sent and in case it is not then it calls
     * AMSend.send to send the new message received as pointer packet. Variable locked is used
-    * for the check: if it is TRUE it means that a message is being sent and FALSE value is 
-    * returned, if it is FALSE then no message is being sent and a TRUE value is returned
+    * for the check: if it is TRUE it means that a message is being sent (radio interface is occupied) and FALSE value is 
+    * returned, if it is FALSE then no message is being sent and a TRUE value is returned. Multiple
+    * messages are sent in case the node is a gateway, othherwise only one message is sent.
     * @Input: 
     *       address: packet destination address
     *       packet: packet to be sent (not only payload)
     * @Output: 
     *       boolean variable: it is TRUE when message could be sent, FALSE otherwise
     */
-    bool actual_send (uint16_t* address, message_t* packet) {
+    bool actual_send (message_t* packet) {
         uint16_t address1, address2;
 
         if (locked) {
@@ -304,6 +296,7 @@ module SenseNetC @safe() {
 
 
 
+
     //***************** Boot interface ********************//
     event void Boot.booted() {
 
@@ -342,7 +335,8 @@ module SenseNetC @safe() {
                 case 5: call Timer1.startPeriodic(5000);;
                               break;
 
-                default: default_statement;
+                default: call Timer1.startPeriodic(1000);;
+                             break
                 }
 
         } 
@@ -388,16 +382,15 @@ module SenseNetC @safe() {
     * Timer triggered to perform the send.
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-        actual_send (queue_addr, &queued_packet);
+        actual_send (&queued_packet);
     }
 
     /*
-    * Implement here the logic to trigger the Sensor Node to send the data packet to the gateways, generate_send function 
-    is called with prototype 
-    generate_send(GATEWAY_ADDRESS, &packet, 1);
+    * Implement here the logic to trigger the Sensor Node to send the data packet to the gateways.
     */
+    // This code is called whenever timer 1 fires. It toggles LED0.
     event void Timer1.fired() {
-        // An array is defined to contain both addresses of the gateways, in order to be able to send multiple packets
+        // This code is executed when the timer expires.
         uint16_t addr[DIM_GATEWAYS]; 
         // a pointer to packet (message_t variable) is declared and assigned to rrm  
         sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
@@ -408,7 +401,29 @@ module SenseNetC @safe() {
         msg_count++;
         payload_p->data = call Random.rand16(); // Generate random integer
         payload_p->sender = TOS_NODE_ID;
-        generate_send(addr, &packet, 0);
+        generate_send(&packet);
+        call Timer2.startOneShot(5000);
+    }
+
+        /*
+    * Implementation of the logic to trigger the retransmission of the data packet to the gateways in case of 
+    no ACK received in a 1ms window.
+    */
+    event void Timer2.fired() {
+        // This code is executed when the timer expires.
+        uint16_t addr[DIM_GATEWAYS]; 
+        // a pointer to packet (message_t variable) is declared and assigned to rrm  
+        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
+        
+        dbg("Timer2", "[Timer2] Timer fired out.\n");
+        payload_p->type = 0;
+        // TODO Message id of the message for which Timer2 has fired must be retrieved from array of sent messages
+
+        msg_count++;
+        payload_p->data = call Random.rand16(); // Generate random integer
+        payload_p->sender = TOS_NODE_ID;
+        generate_send(&packet);
+        call Timer2.startOneShot(5000);
     }
 
 
@@ -468,7 +483,7 @@ module SenseNetC @safe() {
                 new_mess->sender = mess->sender;
                 new_mess->destination = mess->destination;
                 
-                generate_send(&packet, mess->type);
+                generate_send(&packet);
         
             } else if (TOS_NODE_ID == SERVER_NODE) {
                 
@@ -482,7 +497,7 @@ module SenseNetC @safe() {
                     new_mess->sender = mess->destination;
                     new_mess->destination = mess->sender;
 
-                    generate_send(&packet, 1);
+                    generate_send(&packet);
 
                 }
 
