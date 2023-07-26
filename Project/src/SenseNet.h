@@ -1,6 +1,8 @@
 #ifndef SENSE_NET_H
 #define SENSE_NET_H
-#define LIST_SIZE 128
+
+#define SENSOR_LIST_SIZE 128
+#define SERVER_LIST_SIZE 512
 #define SENSOR_NODES 5
 #define GATEWAY_NODES 2
 #define SERVER_NODE 8
