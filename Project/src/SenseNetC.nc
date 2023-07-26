@@ -240,6 +240,67 @@ module SenseNetC @safe() {
 
     }
 
+    // TODO: comments
+    uint16_t index_of_message(uint16_t id) {
+        
+        uint16_t i = 0;
+
+        for (i = 0; i < SENSOR_LIST_SIZE; i++) {
+            
+            if (!list_of_messages[i].overwritable) {
+                
+                if (list_of_messages[i].sense_msg.msg_id == id) {
+                    return i;
+                }
+
+            }
+
+        }
+
+        return -1;
+    }
+
+    // TODO: comments
+    bool is_dup(uint16_t id) {
+
+        uint16_t i;
+
+        for (i = msg_count - 1; i >= 0; i--) {
+            if (list_of_messages[i].sense_msg.msg_id == id) {
+                return TRUE;
+            }
+        }
+
+        for (i = msg_count; i < SERVER_LIST_SIZE; i++) {
+            if (list_of_messages[i].sense_msg.msg_id == id) {
+                return TRUE;
+            }
+        }
+
+        return FALSE;
+
+    }
+
+    // TODO: comments
+    void add_message_to_server_list(sense_msg_t* msg) {
+        
+        list_msg temp;
+        
+        temp.sense_msg.type = msg->type;
+        temp.sense_msg.msg_id = msg->msg_id;
+        temp.sense_msg.data = msg->data;
+        temp.sense_msg.sender = msg->sender;
+        temp.sense_msg.destination = msg->destination;
+
+        list_of_messages[msg_count].sense_msg = temp;
+
+        if (msg_count + 1 < SERVER_LIST_SIZE) {
+            msg_count++;
+        } else {
+            msg_count = 0;
+        }
+
+    }
 
 
 
@@ -357,43 +418,75 @@ module SenseNetC @safe() {
     * If Network Server Parse the receive packet, implement functions and call generate_send with the ACK message packet and the ADDRESS of the destination sensor.
       If Gateway parse ACK message and forward to the destination sensor.
       If Sensor Node don't do anything
+
+      TODO: commemts
     */  
         uint16_t gateway_addr;
+
         if (len != sizeof(radio_route_msg_t)) {
             return bufPtr;
         } else {
 
             // Variable that contains the payload of the received message
             sense_msg_t* mess = (sense_msg_t*) payload;
+            
+            // Variable that contains the message that will be sent from the current node
+            sense_msg_t* new_mess = (sense_msg_t*) call Packet.getPayload(&packet, sizeof(sense_msg_t));
 
-            dbg("radio_rec", "[RADIO_REC] Received a message of type %u.\n", mess->type);
+            dbg("radio_rec", "[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
 
             if (new_mess == NULL) {
                 dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
                 return bufPtr;
             }
 
-        if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
-            if(mess->type == 0){
+            if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= SENSOR_NODES) {
+                
+                if (mess->type == 1) {
 
-            }else if(mess->type == 1){
+                    uint16_t index = 0;
+                    
+                    index = index_of_message(mess->msg_id);
+
+                    if (index < 0) {
+                        return NULL;
+                    }
+
+                    list_of_messages[index].overwritable = TRUE;
+
+                } else {
+
+                    // generate error since a sensor node is receiving a data message
+
+                }
+
+            } else if (TOS_NODE_ID > SENSOR_NODES && TOS_NODE_ID <= SENSOR_NODES + GATEWAY_NODES) {
+
+                new_mess->type = mess->type;
+                new_mess->msg_id = mess->msg_id;
+                new_mess->data = mess->data;
+                new_mess->sender = mess->sender;
+                new_mess->destination = mess->destination;
+                
+                generate_send(&packet, mess->type);
+        
+            } else if (TOS_NODE_ID == SERVER_NODE) {
+                
+                if (!is_dup(mess->msg_id)) {
+
+                    add_message_to_server_list(mess);
+
+                    new_mess->type = 1;
+                    new_mess->msg_id = mess->msg_id;
+                    new_mess->data = 0;
+                    new_mess->sender = mess->destination;
+                    new_mess->destination = mess->sender;
+
+                    generate_send(&packet, 1);
+
+                }
 
             }
-        }else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
-            if(mess->type == 0){
-            }else if(mess->type == 1){
-
-            }           
-        }else if(TOS_NODE_ID == 8){
-            if(mess->type == 0){
-                // Functions implementation
-
-                // DUP ACK suppression and ACK sending
-                
-            }else if(mess->type == 1)
-                //generate error message
         }
-    }
-    }
     }
 }

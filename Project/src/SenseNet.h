@@ -17,7 +17,7 @@ typedef nx_struct sense_msg {
 
 typedef nx_struct list_msg {
   sense_msg_t sense_msg;
-  bool ack_received;
+  bool overwritable;
 } list_msg;
 
 enum {
