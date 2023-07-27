@@ -388,13 +388,9 @@ module SenseNetC @safe() {
     /*
     * Implement here the logic to trigger the Sensor Node to send the data packet to the gateways.
     */
-    // This code is called whenever timer 1 fires. It toggles LED0.
-    event void Timer1.fired() {
-        // This code is executed when the timer expires.
+    event void Timer1.fired() {        
         uint16_t addr[DIM_GATEWAYS]; 
-        // a pointer to packet (message_t variable) is declared and assigned to rrm  
-        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
-        
+        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t);
         dbg("timer1", "[TIMER1] Timer fired out.\n");
         payload_p->type = 0;
         payload_p->msg_id = msg_count;
