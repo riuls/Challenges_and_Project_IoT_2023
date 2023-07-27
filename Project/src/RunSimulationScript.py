@@ -50,17 +50,16 @@ print "Activate debug message on channel init"
 t.addChannel("init", out)
 print "Activate debug message on channel boot"
 t.addChannel("boot", out)
+print "Activate debug message on channel timer0"
+t.addChannel("timer0", out)
 print "Activate debug message on channel timer1"
 t.addChannel("timer1", out)
-print "Activate debug message on channel radio"
-t.addChannel("radio", out)
-print "Activate debug message on channel radio_send"
+print "Activate debug message on channel timer2"
+t.addChannel("timer2", out)
+print "Activate debug message on channel radio send"
 t.addChannel("radio_send", out)
-print "Activate debug message on channel radio_rec"
-t.addChannel("radio_rec", out)
-print "Activate debug message on channel leds"
-t.addChannel("leds", out)
-
+print "Activate debug message on radio receive"
+t.addChannel("radio_receive", out)
 
 
 print "Creating node 1..."
@@ -145,7 +144,7 @@ for line in lines:
             t.getNode(i).addNoiseTraceReading(val)
 print "Done!"
 
-for i in range(1, 9):
+for i in range(1, 9): // TODO: check if 9 is correct
     print ">>>Creating noise model for node:", i;
     t.getNode(i).createNoiseModel()
 
