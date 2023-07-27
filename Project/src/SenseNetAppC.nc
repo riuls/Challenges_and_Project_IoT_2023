@@ -12,6 +12,7 @@ implementation {
 
     components new TimerMilliC() as Timer0;
     components new TimerMilliC() as Timer1;
+    components new TimerMilliC() as Timer2;
 
     //Boot interface
     App.Boot -> MainC.Boot;
@@ -25,6 +26,7 @@ implementation {
     // Timer
     App.Timer0 -> Timer0;
     App.Timer1 -> Timer1;
+    App.Timer2 -> Timer2;
 
     // Random number generator
     App.Random -> RandomC;
