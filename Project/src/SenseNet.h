@@ -15,10 +15,15 @@ typedef nx_struct sense_msg {
   nx_uint16_t destination; // Destination node address
 } sense_msg_t;
 
-typedef nx_struct list_msg {
+typedef nx_struct ack_status_msg {
   sense_msg_t sense_msg;
-  bool overwritable;
-} list_msg;
+  bool ack_received;
+} ack_status_t;
+
+typedef nx_struct last_message_msg {
+  sense_msg_t sense_msg;
+  bool ack_received;
+} last_message_status_t;
 
 enum {
   AM_RADIO_COUNT_MSG = 10,

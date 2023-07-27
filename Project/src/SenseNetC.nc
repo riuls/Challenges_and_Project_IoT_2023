@@ -39,18 +39,33 @@ module SenseNetC @safe() {
 
     message_t packet;
 
+    /* TODO: DELETE
     list_msg* list_of_messages = NULL;
     uint16_t msg_count = 0;
+    */
 
+    /* TODO: DELETE
     // Variable for storing sender gateway address
     uint16_t sender_gateway;
+    */
 
     // Variable for storing radio interface occupation status
     bool locked;
 
+    // Variable for storing ACK reception status
+    ack_status_t ack_rec_status;
+
+    // Variable for storing last message received from a sensor node
+    sense_msg_t last_msg_received;
 
 
     // TODO: comments
+
+    void initialize ack_rec_status() {
+        ack_rec_status.ack_received = FALSE;
+    }
+
+   /* // TODO: DELETE
     void initialize_sensor_message_list() {
         
         list_msg temp[SENSOR_LIST_SIZE] = NULL;
@@ -67,7 +82,9 @@ module SenseNetC @safe() {
         msg_count = 0;
     }
 
-    // TODO: comments
+    */
+
+    // TODO: DELETE
     void initialize_server_message_list() {
 
         list_msg temp[SERVER_LIST_SIZE] = NULL;
@@ -252,7 +269,8 @@ module SenseNetC @safe() {
         return -1;
     }
 
-    // TODO: comments
+    /*
+    // TODO: DELETE
     bool is_dup(uint16_t id) {
 
         uint16_t i;
@@ -272,8 +290,9 @@ module SenseNetC @safe() {
         return FALSE;
 
     }
+    */
 
-    // TODO: comments
+    /* // TODO: DELETE
     void add_message_to_server_list(sense_msg_t* msg) {
         
         list_msg temp;
@@ -294,6 +313,13 @@ module SenseNetC @safe() {
 
     }
 
+    */
+
+    /* Function to change the last message received from a sensor node in the Server Node. */
+    void change_last_message(sense_msg_t* msg){
+
+    }
+
 
 
 
@@ -305,7 +331,8 @@ module SenseNetC @safe() {
         if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= SENSOR_NODES) {
             initialize_sensor_message_list();
         } else if (TOS_NODE_ID == SERVER_NODE) {
-            initialize_server_message_list();
+            // initialize_server_message_list();
+            initialize ack_rec_status();
         }
         
         // When the device is booted, the radio is started
@@ -324,15 +351,15 @@ module SenseNetC @safe() {
 
             switch(TOS_NODE_ID)
                 {
-                case 1: call Timer1.startPeriodic(1000);;
+                case 1: call Timer1.startPeriodic(2000);;
                              break;
-                case 2: call Timer1.startPeriodic(2000);;
+                case 2: call Timer1.startPeriodic(2500);;
                              break;
                 case 3: call Timer1.startPeriodic(3000);;
                               break;
-                case 4: call Timer1.startPeriodic(4000);;
+                case 4: call Timer1.startPeriodic(3500);;
                              break;
-                case 5: call Timer1.startPeriodic(5000);;
+                case 5: call Timer1.startPeriodic(4000);;
                               break;
 
                 default: call Timer1.startPeriodic(1000);;
@@ -389,16 +416,20 @@ module SenseNetC @safe() {
     * Implement here the logic to trigger the Sensor Node to send the data packet to the gateways.
     */
     event void Timer1.fired() {        
-        uint16_t addr[DIM_GATEWAYS]; 
-        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t);
-        dbg("timer1", "[TIMER1] Timer fired out.\n");
-        payload_p->type = 0;
-        payload_p->msg_id = msg_count;
-        msg_count++;
-        payload_p->data = call Random.rand16(); // Generate random integer
-        payload_p->sender = TOS_NODE_ID;
-        generate_send(&packet);
-        call Timer2.startOneShot(5000);
+        if(TOS_NODE_ID <= SENSOR_NODES){
+            uint16_t addr[DIM_GATEWAYS]; 
+            sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t);
+            dbg("timer1", "[TIMER1] Timer fired out.\n");
+            payload_p->type = 0;
+            payload_p->msg_id = msg_count;
+            msg_count++;
+            payload_p->data = call Random.rand16(); // Generate random integer
+            payload_p->sender = TOS_NODE_ID;
+            generate_send(&packet);
+            // Reset the ack_received status
+            ack_rec_status.ack_received = FALSE;
+            call Timer2.startOneShot(1000);
+        }
     }
 
         /*
@@ -406,20 +437,21 @@ module SenseNetC @safe() {
     no ACK received in a 1ms window.
     */
     event void Timer2.fired() {
-        // This code is executed when the timer expires.
-        uint16_t addr[DIM_GATEWAYS]; 
-        // a pointer to packet (message_t variable) is declared and assigned to rrm  
+        // This code is executed when the Timer2 expires.
+        // a pointer to packet (message_t variable) is declared and assigned to payload_p  
         sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
         
         dbg("Timer2", "[Timer2] Timer fired out.\n");
-        payload_p->type = 0;
-        // TODO Message id of the message for which Timer2 has fired must be retrieved from array of sent messages
+        // Control if the ACK has been received
+        if(ack_rec_status.ack_received == FALSE){
+            // If the ACK has not been received, the packet is retransmitted
+            dbg("Timer2", "[Timer2] ACK not received.\n");
+            generate_send(&packet);
+        }else{
+            // If the ACK has been received, the packet is not retransmitted
+            dbg("Timer2", "[Timer2] ACK received.\n");
+        }
 
-        msg_count++;
-        payload_p->data = call Random.rand16(); // Generate random integer
-        payload_p->sender = TOS_NODE_ID;
-        generate_send(&packet);
-        call Timer2.startOneShot(5000);
     }
 
 
@@ -433,26 +465,38 @@ module SenseNetC @safe() {
       TODO: commemts
     */  
         uint16_t gateway_addr;
+        sense_msg_t* new_mess = NULL;
 
         if (len != sizeof(radio_route_msg_t)) {
             return bufPtr;
         } else {
+            dbg("radio_rec", "[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
 
             // Variable that contains the payload of the received message
             sense_msg_t* mess = (sense_msg_t*) payload;
             
             // Variable that contains the message that will be sent from the current node
-            sense_msg_t* new_mess = (sense_msg_t*) call Packet.getPayload(&packet, sizeof(sense_msg_t));
-
-            dbg("radio_rec", "[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
-
-            if (new_mess == NULL) {
+            if (new_mess = (sense_msg_t*) call Packet.getPayload(&packet, sizeof(sense_msg_t)) == NULL) {
                 dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
                 return bufPtr;
             }
+    
 
             if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= SENSOR_NODES) {
-                
+
+                if (mess->type == 1) {
+
+                    ack_rec_status.ack_received = TRUE;
+
+
+                } else {
+
+                    // generate error since a sensor node is receiving a data message
+
+                }
+
+
+                /* TODO DELETE
                 if (mess->type == 1) {
 
                     uint16_t index = 0;
@@ -471,6 +515,10 @@ module SenseNetC @safe() {
 
                 }
 
+                */
+
+
+
             } else if (TOS_NODE_ID > SENSOR_NODES && TOS_NODE_ID <= SENSOR_NODES + GATEWAY_NODES) {
 
                 new_mess->type = mess->type;
@@ -483,10 +531,19 @@ module SenseNetC @safe() {
         
             } else if (TOS_NODE_ID == SERVER_NODE) {
                 
-                if (!is_dup(mess->msg_id)) {
+                if (mess->msg_id != last_msg_received.msg_id) {
 
-                    add_message_to_server_list(mess);
+                    // Last message received is updated
+                    last_msg_received.type = mess->type;
+                    last_msg_received.msg_id = mess->msg_id;
+                    last_msg_received.data = mess->data;
+                    last_msg_received.sender = mess->sender;
+                    last_msg_received.destination = mess->destination;
 
+                    // TODO : Server forwards to MQTT and NODE-RED Servers
+                    
+
+                    // ACK is generated
                     new_mess->type = 1;
                     new_mess->msg_id = mess->msg_id;
                     new_mess->data = 0;
