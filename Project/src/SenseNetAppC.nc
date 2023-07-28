@@ -1,10 +1,10 @@
-#include "RadioRoute.h"
+#include "SenseNet.h"
 
-configuration RadioRouteAppC {}
+configuration SenseNetAppC {}
 
 implementation {
 
-    components MainC, RadioRouteC as App, LedsC;
+    components MainC, SenseNetC as App;
 
     components ActiveMessageC;
     components new AMSenderC(AM_RADIO_COUNT_MSG);
@@ -13,6 +13,8 @@ implementation {
     components new TimerMilliC() as Timer0;
     components new TimerMilliC() as Timer1;
     components new TimerMilliC() as Timer2;
+
+    components RandomC as Random;
 
     //Boot interface
     App.Boot -> MainC.Boot;
@@ -28,7 +30,7 @@ implementation {
     App.Timer1 -> Timer1;
     App.Timer2 -> Timer2;
 
-    // Random number generator
-    App.Random -> RandomC;
+    // Random
+    App.Random -> Random;
     
 }

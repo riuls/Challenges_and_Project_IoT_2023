@@ -7,15 +7,6 @@ print "********************************************"
 import sys
 import time
 
-print "********************************************"
-print "*                                          *"
-print "*             TOSSIM Script                *"
-print "*                                          *"
-print "********************************************"
-
-import sys
-import time
-
 from TOSSIM import *
 
 t = Tossim([])
@@ -35,15 +26,12 @@ print "Initializing simulator...."
 t.init()
 
 
-simulation_outfile = "tossim_log.txt"
+simulation_outfile = "simulation.txt"
 print "Saving sensors simulation output to:", simulation_outfile;
 #simulation_out = open(simulation_outfile, "w");
 
 out = open(simulation_outfile, "w")
 #out = sys.stdout;
-
-# TODO: modify this section to add the needed debug channels 
-# (remove the ones that are not needed, they have been copied from Challenge3 script)
 
 # Add debug channel
 print "Activate debug message on channel init"
@@ -58,8 +46,10 @@ print "Activate debug message on channel timer2"
 t.addChannel("timer2", out)
 print "Activate debug message on channel radio send"
 t.addChannel("radio_send", out)
-print "Activate debug message on radio receive"
+print "Activate debug message on channel radio receive"
 t.addChannel("radio_receive", out)
+print "Activate debug message on channel server"
+t.addChannel("server", out)
 
 
 print "Creating node 1..."
@@ -144,13 +134,13 @@ for line in lines:
             t.getNode(i).addNoiseTraceReading(val)
 print "Done!"
 
-for i in range(1, 9): // TODO: check if 9 is correct
+for i in range(1, 9):
     print ">>>Creating noise model for node:", i;
     t.getNode(i).createNoiseModel()
 
 print "Start simulation with TOSSIM! \n\n\n"
 
-for i in range(0, 2400):
+for i in range(0, 65536):
     t.runNextEvent()
 
 print "\n\n\nSimulation finished!"

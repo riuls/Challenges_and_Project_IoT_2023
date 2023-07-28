@@ -37,11 +37,11 @@ module SenseNetC @safe() {
     // Time delay in milli seconds
     uint16_t time_delays[8] = {40, 60, 45, 50, 55, 30, 30, 75};
 
-    message_t packet;
+    message_t global_packet;
     message_t queued_packet;
 
     // TODO: comments
-    last_message_received* last_sensor_messages = NULL;
+    last_message_received last_sensor_messages[SENSOR_NODES];
 
     // Variable for storing radio interface occupation status
     bool locked;
@@ -61,17 +61,13 @@ module SenseNetC @safe() {
 
     // TODO: comments
     void initialize_server_message_list() {
-
-        last_message_received temp[SENSOR_NODES];
         
         uint16_t i = 0;
 
         for (i = 0; i < SENSOR_NODES; i++) {
-            temp[i].msg_id = -1;
-            temp[i].retransmitted = FALSE;
+            last_sensor_messages[i].msg_id = -1;
+            last_sensor_messages[i].retransmitted = FALSE;
         }
-
-        last_sensor_messages = temp;
 
     }
 
@@ -116,7 +112,6 @@ module SenseNetC @safe() {
     *       boolean variable: it is TRUE when message could be sent, FALSE otherwise
     */
     bool actual_send (message_t* packet) {
-        uint16_t address1, address2;
 
         if (locked) {
 
@@ -126,8 +121,8 @@ module SenseNetC @safe() {
 
             sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
 
-            gateway_1 = SENSOR_NODES + GATEWAY_NODES -1;
-            gateway_2 = SENSOR_NODES + GATEWAY_NODES;
+            uint8_t gateway_1 = SENSOR_NODES + GATEWAY_NODES -1;
+            uint8_t gateway_2 = SENSOR_NODES + GATEWAY_NODES;
 
             if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
 
@@ -156,7 +151,6 @@ module SenseNetC @safe() {
                 payload_p->destination = gateway_1;
                 
                 if (call AMSend.send(gateway_1, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
                     dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u passing by gateway 1 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination);
                     locked = TRUE;
                 } else {
@@ -168,7 +162,6 @@ module SenseNetC @safe() {
                 payload_p->destination = gateway_2;
                 
                 if (call AMSend.send(gateway_2, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
                     dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u passing by gateway 2 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination); 
                     locked = TRUE;
                 } else {
@@ -180,7 +173,6 @@ module SenseNetC @safe() {
                 if (payload_p->type == 0) {
                     
                     if (call AMSend.send(SERVER_NODE, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
                         dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u.\n", payload_p->type, payload_p->msg_id, TOS_NODE_ID, SERVER_NODE);
                         locked = TRUE;
                     } else {
@@ -190,7 +182,6 @@ module SenseNetC @safe() {
                 } else {
                     
                     if (call AMSend.send(payload_p->destination, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
                         dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u.\n", payload_p->type, payload_p->msg_id, payload_p->sender, payload_p->destination);
                         locked = TRUE;
                     } else {
@@ -202,8 +193,7 @@ module SenseNetC @safe() {
             } else if (TOS_NODE_ID == SERVER_NODE) {
                 
                 if (call AMSend.send(payload_p->sender, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
-                dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from Server (Node %u) to %u passing by gateway %u (Node %u).\n", payload_p->type, payload_p->msg_id, SERVER_NODE, payload_p->destination, payload_p->sender - SENSOR_NODES, payload_p->sender);
+                    dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from Server (Node %u) to %u passing by gateway %u (Node %u).\n", payload_p->type, payload_p->msg_id, SERVER_NODE, payload_p->destination, payload_p->sender - SENSOR_NODES, payload_p->sender);
                     locked = TRUE;
                 } else {
                     dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from Server (Node %u) to %u passing by gateway %u (Node %u).\n", payload_p->type, payload_p->msg_id, SERVER_NODE, payload_p->destination, payload_p->sender - SENSOR_NODES, payload_p->sender);
@@ -228,6 +218,8 @@ module SenseNetC @safe() {
         } else if (TOS_NODE_ID == SERVER_NODE) {
             initialize_server_message_list();
         }
+
+        dbg("timer0", "PROVA PROVA PROVA.\n");
         
         // When the device is booted, the radio is started
         call AMControl.start();
@@ -243,28 +235,30 @@ module SenseNetC @safe() {
 
             dbg("radio", "[RADIO] Radio successfully started for node %u.\n", TOS_NODE_ID);
 
-            switch(TOS_NODE_ID)
-                {
-                case 1: call Timer1.startPeriodic(2000);;
-                             break;
-                case 2: call Timer1.startPeriodic(2500);;
-                             break;
-                case 3: call Timer1.startPeriodic(3000);;
-                              break;
-                case 4: call Timer1.startPeriodic(3500);;
-                             break;
-                case 5: call Timer1.startPeriodic(4000);;
-                              break;
-
-                default: call Timer1.startPeriodic(1000);;
-                             break
-                }
+            switch(TOS_NODE_ID) {
+                case 1: 
+                    call Timer1.startPeriodic(2000);
+                    break;
+                case 2: 
+                    call Timer1.startPeriodic(2500);
+                    break;
+                case 3: 
+                    call Timer1.startPeriodic(3000);
+                    break;
+                case 4: 
+                    call Timer1.startPeriodic(3500);
+                    break;
+                case 5: 
+                    call Timer1.startPeriodic(4000);
+                    break;
+                default:
+                    break;
+            }
 
         } 
         // If the radio didn't turn on successfully, the start is performed again
         else {
             
-            // TODO print something for the debugging
             dbg("radio", "[RADIO] Radio starting failed for node %u...restarting.\n", TOS_NODE_ID);
             call AMControl.start();
 
@@ -304,7 +298,7 @@ module SenseNetC @safe() {
     * Timer triggered to perform the send.
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-        dbg("timer0", "[TIMER0] Timer  fired out.\n");
+        dbg("timer0", "[TIMER0] Timer 0 fired out for node %u.\n", TOS_NODE_ID);
         actual_send(&queued_packet);
     }
 
@@ -313,12 +307,11 @@ module SenseNetC @safe() {
     */
     event void Timer1.fired() {
 
-        dbg("timer1", "[TIMER1] Timer fired out.\n");   
+        dbg("timer1", "[TIMER1] Timer fired out for node %u.\n", TOS_NODE_ID);   
 
         if(TOS_NODE_ID <= SENSOR_NODES){
 
-            uint16_t addr[GATEWAY_NODES]; 
-            sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
+            sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&global_packet, sizeof(sense_msg_t));
             
             payload_p->type = 0;
             payload_p->msg_id = msg_count;
@@ -326,10 +319,10 @@ module SenseNetC @safe() {
             payload_p->data = call Random.rand16(); // Generate random integer
             payload_p->sender = TOS_NODE_ID;
 
-            generate_send(&packet);
+            generate_send(&global_packet);
 
             // Reset the ack_received status
-            ack_rec_status.sense_msg = payload_p;
+            ack_rec_status.sense_msg = *payload_p;
             ack_rec_status.ack_received = FALSE;
             call Timer2.startOneShot(1000);
         }
@@ -341,21 +334,19 @@ module SenseNetC @safe() {
     */
     event void Timer2.fired() {
         // This code is executed when the Timer2 expires.
-        // a pointer to packet (message_t variable) is declared and assigned to payload_p  
-        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&packet, sizeof(sense_msg_t));
-        
-        dbg("timer2", "[TIMER2] Timer fired out.\n");
+
+        dbg("timer2", "[TIMER2] Timer fired out for node %u.\n", TOS_NODE_ID);
         
         // Control if the ACK has been received
         if(ack_rec_status.ack_received == FALSE){
             
             // If the ACK has not been received, the packet is retransmitted
-            dbg("timer2", "[TIMER2] ACK not received.\n");
-            generate_send(&packet);
+            dbg("timer2", "[TIMER2] ACK not received by node %u.\n", TOS_NODE_ID);
+            generate_send(&global_packet);
 
         }else{
             // If the ACK has been received, the packet is not retransmitted
-            dbg("timer2", "[TIMER2] ACK received.\n");
+            dbg("timer2", "[TIMER2] ACK received by node %u.\n", TOS_NODE_ID);
         }
 
     }
@@ -372,17 +363,19 @@ module SenseNetC @safe() {
     */  
         sense_msg_t* new_mess = NULL;
 
-        if (len != sizeof(radio_route_msg_t)) {
+        if (len != sizeof(sense_msg_t)) {
             return bufPtr;
         } else {
 
             // Variable that contains the payload of the received message
             sense_msg_t* mess = (sense_msg_t*) payload;
+            
+            new_mess = (sense_msg_t*) call Packet.getPayload(&global_packet, sizeof(sense_msg_t))
 
             dbg("radio_receive", "[RADIO_RECEIVE] Received a message of type %u with id %u at node %u.\n", mess->type, mess->msg_id, TOS_NODE_ID);
             
             // Variable that contains the message that will be sent from the current node
-            if (new_mess = (sense_msg_t*) call Packet.getPayload(&packet, sizeof(sense_msg_t)) == NULL) {
+            if (new_mess == NULL) {
                 dbgerror("radio_receive", "[RADIO_RECEIVE] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
                 return bufPtr;
             }
@@ -392,30 +385,33 @@ module SenseNetC @safe() {
 
                 if (mess->type == 1) {
 
+                    dbg("radio_receive", "[RADIO_RECEIVE] Received ACK for message with id %u at node %u.\n", mess->msg_id, TOS_NODE_ID);
                     ack_rec_status.ack_received = TRUE;
 
                 } else {
 
-                    // generate error since a sensor node is receiving a data message
+                    dbgerror("radio_receive", "[RADIO_RECEIVE] ERROR: Node %u, which is a sensor node, receives a data message.\n", TOS_NODE_ID)
 
                 }
 
             } else if (TOS_NODE_ID > SENSOR_NODES && TOS_NODE_ID <= SENSOR_NODES + GATEWAY_NODES) {
-
+                
                 new_mess->type = mess->type;
                 new_mess->msg_id = mess->msg_id;
                 new_mess->data = mess->data;
                 new_mess->sender = mess->sender;
                 new_mess->destination = mess->destination;
                 
-                generate_send(&packet);
+                generate_send(&global_packet);
         
             } else if (TOS_NODE_ID == SERVER_NODE) {
 
-                if (!last_sensor_messages[mess->sender] == mess->msg_id) {
+                if (!(last_sensor_messages[mess->sender].msg_id == mess->msg_id)) {
 
                     // TODO : Server forwards to MQTT and NODE-RED Servers
 
+                    dbg("server", "[SERVER] Received a message with new ID from %u, updating the field...\n", mess->sender);
+                    
                     last_sensor_messages[mess->sender].msg_id = mess->msg_id;
                     last_sensor_messages[mess->sender].retransmitted = FALSE;
 
@@ -425,9 +421,11 @@ module SenseNetC @safe() {
                     new_mess->sender = mess->destination;
                     new_mess->destination = mess->sender;
 
-                    generate_send(&packet);
+                    generate_send(&global_packet);
 
                 } else if (last_sensor_messages[mess->sender].retransmitted == FALSE) {
+                    
+                    dbg("server", "[SERVER] Received again the last message (same ID). Retransmitting the ACK...\n");
                     
                     last_sensor_messages[mess->sender].retransmitted = TRUE;
 
@@ -437,7 +435,7 @@ module SenseNetC @safe() {
                     new_mess->sender = mess->destination;
                     new_mess->destination = mess->sender;
 
-                    generate_send(&packet);
+                    generate_send(&global_packet);
 
                 }
 
