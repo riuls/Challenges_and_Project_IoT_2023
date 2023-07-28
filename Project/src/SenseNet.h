@@ -1,8 +1,6 @@
 #ifndef SENSE_NET_H
 #define SENSE_NET_H
 
-#define SENSOR_LIST_SIZE 128
-#define SERVER_LIST_SIZE 512
 #define SENSOR_NODES 5
 #define GATEWAY_NODES 2
 #define SERVER_NODE 8
@@ -20,6 +18,10 @@ typedef nx_struct ack_status_msg {
   bool ack_received;
 } ack_status_t;
 
+typedef nx_struct last_message_received {
+  uint16_t msg_id;
+  bool retransmitted;
+} last_message_received;
 
 enum {
   AM_RADIO_COUNT_MSG = 10,
