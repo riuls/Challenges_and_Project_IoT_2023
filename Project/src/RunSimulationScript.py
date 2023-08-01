@@ -30,8 +30,8 @@ simulation_outfile = "simulation.txt"
 print "Saving sensors simulation output to:", simulation_outfile;
 #simulation_out = open(simulation_outfile, "w");
 
-#out = open(simulation_outfile, "w")
-out = sys.stdout;
+out = open(simulation_outfile, "w")
+# out = sys.stdout;
 
 # Add debug channel
 print "Activate debug message on channel init"
@@ -140,7 +140,7 @@ for i in range(1, 9):
 
 print "Start simulation with TOSSIM! \n\n\n"
 
-for i in range(0, 65536):
+for i in range(0, 2048):
     t.runNextEvent()
 
 print "\n\n\nSimulation finished!"
