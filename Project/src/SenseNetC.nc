@@ -115,10 +115,10 @@ module SenseNetC @safe() {
 
     }
 
-	
-	void initialize_counter(){
-		counter = 0;
-	}
+ 
+ void initialize_counter(){
+  counter = 0;
+ }
 
 
     //***************** Boot interface ********************//
@@ -128,7 +128,8 @@ module SenseNetC @safe() {
         
         if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
             initialize_counter();
-        	dbg("init", "[INIT] Counter table initialized for node %u.\n", TOS_NODE_ID);
+         dbg("init", "[INIT] Counter table
+INIT] Counter table initialized for node %u.\n", TOS_NODE_ID);
         }
         
         // When the device is booted, the radio is started
@@ -230,85 +231,85 @@ module SenseNetC @safe() {
         // When Timer1 fires out, the sensor prepares a data packet
         if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
         
-        	// data packet is prepared for gateway 1	
-        	addr = 6;
-        	
-		    payload_p->type = 0;
-		    payload_p->msg_id = counter;
-		    payload_p->sender = TOS_NODE_ID;
-		    payload_p->destination = addr;
-		    payload_p->data = call Random.rand16(); // Generate random integer
-			
-		
-		    // The data packet is sent to gateway 1
-		    generate_send(addr, &globalpacket, 0);
-		    
-		    // DO WE NEED TO PREPARE A NEW POINTER TO GLOBALPACKET?
-		    
-		    // data packet is prepared for gateway 2
-		    addr = 7;
-        	
-		    payload_p->type = 0;
-		    payload_p->msg_id = counter;
-		    payload_p->sender = TOS_NODE_ID;
-		    payload_p->destination = addr;
-		    payload_p->data = call Random.rand16(); // Generate random integer
-		    
-		    // Increase message id counter
-		    counter++;
-			
-		
-		    // The data packet is sent to gateway 2
-		    generate_send(addr, &globalpacket, 0);
-		    
-		}else if(TOS_NODE_ID == 1){
-		
-		    // data packet is prepared for gateway 1	
-        	addr = 6;
-        	
-		    payload_p->type = 0;
-		    payload_p->msg_id = counter;
-		    payload_p->sender = TOS_NODE_ID;
-		    payload_p->destination = addr;
-		    payload_p->data = call Random.rand16(); // Generate random integer
-		    
-		    // Increase message id counter
-		    counter++;
-			
-		
-		    // The data packet is sent to gateway 1
-		    generate_send(addr, &globalpacket, 0);
-		
-		}else if(TOS_NODE_ID == 3 || TOS_NODE_ID == 5){
-		    // data packet is prepared for gateway 2
-		    addr = 7;
-        	
-		    payload_p->type = 0;
-		    payload_p->msg_id = counter;
-		    payload_p->sender = TOS_NODE_ID;
-		    payload_p->destination = addr;
-		    payload_p->data = call Random.rand16(); // Generate random integer
-		    		    
-		    // Increase message id counter
-		    counter++;
-			
-		
-		    // The data packet is sent to gateway 2
-		    generate_send(addr, &globalpacket, 0);
-		}else
-			 dbg("timer1", "[TIMER1] Error : selected node doesn't exist.\n");
+         // data packet is prepared for gateway 1 
+         addr = 6;
+         
+      payload_p->type = 0;
+      payload_p->msg_id = counter;
+      payload_p->sender = TOS_NODE_ID;
+      payload_p->destination = addr;
+      payload_p->data = call Random.rand16(); // Generate random integer
+   
+  
+      // The data packet is sent to gateway 1
+      generate_send(addr, &globalpacket, 0);
+      
+      // DO WE NEED TO PREPARE A NEW POINTER TO GLOBALPACKET?
+      
+      // data packet is prepared for gateway 2
+      addr = 7;
+         
+      payload_p->type = 0;
+      payload_p->msg_id = counter;
+      payload_p->sender = TOS_NODE_ID;
+      payload_p->destination = addr;
+      payload_p->data = call Random.rand16(); // Generate random integer
+      
+      // Increase message id counter
+      counter++;
+   
+  
+      // The data packet is sent to gateway 2
+      generate_send(addr, &globalpacket, 0);
+      
+  }else if(TOS_NODE_ID == 1){
+  
+      // data packet is prepared for gateway 1 
+         addr = 6;
+         
+      payload_p->type = 0;
+      payload_p->msg_id = counter;
+payload_p->sender = TOS_NODE_ID;
+      payload_p->destination = addr;
+      payload_p->data = call Random.rand16(); // Generate random integer
+      
+      // Increase message id counter
+      counter++;
+   
+  
+      // The data packet is sent to gateway 1
+      generate_send(addr, &globalpacket, 0);
+  
+  }else if(TOS_NODE_ID == 3 || TOS_NODE_ID == 5){
+      // data packet is prepared for gateway 2
+      addr = 7;
+         
+      payload_p->type = 0;
+      payload_p->msg_id = counter;
+      payload_p->sender = TOS_NODE_ID;
+      payload_p->destination = addr;
+      payload_p->data = call Random.rand16(); // Generate random integer
+            
+      // Increase message id counter
+      counter++;
+   
+  
+      // The data packet is sent to gateway 2
+      generate_send(addr, &globalpacket, 0);
+  }else
+    dbg("timer1", "[TIMER1] Error : selected node doesn't exist.\n");
     }
 
-	event void Timer2.fired() {
+ event void Timer2.fired() {
     /*
     * Timer triggered to perform the send.
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-	 dbg("timer2", "[TIMER2] Timer fired out.\n");
+  dbg("timer2", "[TIMER2] Timer fired out.\n");
         
     }
 
-	
+ 
 
     //***************** Receive interface *****************//
     event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
@@ -335,7 +336,7 @@ module SenseNetC @safe() {
                 dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
                 return bufPtr;
             }
-			
+   
             // A data message is received, debug messages are sent
             if (mess->type == 0) {
 
@@ -346,36 +347,50 @@ module SenseNetC @safe() {
                     dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
 
                 }else if( TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
-               		dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
+                 dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
                 }else
-                	dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET");
+                 dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET\n");
            
            }else if(mess->type == 1){
-           		if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
-           			 dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
-           		}else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
-           		 	dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
-           		}else
-           			dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET");
+             if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
+               dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
+             }else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
+               dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
+             }else
+              dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET\n");
            }else
-           		dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
-           		
-           		
+             dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
+             
+             
            // Logic implementation at the receiver 
            
            if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
-           		if(mess->type == 0){
-           			// Forward data packet to Server node
-           			addr = 8;
-           			generate_send(addr, &globalpacket, 0);
-           		}else if(mess->type == 1){
-           			// Forward ack to correspondent sensor node
-           			addr = mess->destination;
-           			generate_send(addr, &globalpacket, 1);
-           		}else
-           			dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE");
+             if(mess->type == 0){
+              // Forward data packet to Server node
+              new_mess->type = mess->type;
+                    new_mess->msg_id = mess->msg_id;
+                    new_mess->data = mess->data;
+                    new_mess->sender = mess->sender;
+                    new_mess->destination = mess->destination;
+                    
+                    addr = 8;
+              
+              generate_send(addr, &globalpacket, 0);
+             }else if(mess->type == 1){
+              // Forward ack to correspondent sensor node
+                    new_mess->type = mess->type;
+                    new_mess->msg_id = mess->msg_id;
+                    new_mess->data = mess->data;
+                    new_mess->sender = mess->sender;
+                    new_mess->destination = mess->destination;
+                    
+              addr = new_mess->destination;
+              generate_send(addr, &globalpacket, 1);
+              dbg("radio_rec", "[RADIO_REC] GATEWAY RECEIVED ACK\n");
+             }else
+              dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE\n");
            }else if(TOS_NODE_ID == 8){
-           		    new_mess->type = 1;
+                 new_mess->type = 1;
                     new_mess->msg_id = mess->msg_id;
                     new_mess->data = 0;
                     new_mess->sender = mess->destination;
@@ -383,12 +398,15 @@ module SenseNetC @safe() {
                     
                     addr = new_mess->sender;
                     generate_send(addr, &globalpacket, 1);
+                    dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
+                    dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
                     
                     // TODO Implementation of dup-ACK suppression
            }else if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
-           		// TODO Implementation of data packet retransmission
+             dbg("radio_rec", "[RADIO_REC] SENSOR RECEIVED ACK\n");
+             // TODO Implementation of data packet retransmission
            }else
-           		dbg("radio_rec", "[RADIO_REC] ERROR : INVALID NODE");
+             dbg("radio_rec", "[RADIO_REC] ERROR : INVALID NODE\n");
             
             return bufPtr;
         }
