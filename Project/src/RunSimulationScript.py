@@ -30,8 +30,8 @@ simulation_outfile = "simulation.txt"
 print "Saving sensors simulation output to:", simulation_outfile;
 #simulation_out = open(simulation_outfile, "w");
 
-out = open(simulation_outfile, "w")
-#out = sys.stdout;
+#out = open(simulation_outfile, "w")
+out = sys.stdout;
 
 # Add debug channel
 print "Activate debug message on channel init"
@@ -47,7 +47,7 @@ t.addChannel("timer2", out)
 print "Activate debug message on channel radio send"
 t.addChannel("radio_send", out)
 print "Activate debug message on channel radio receive"
-t.addChannel("radio_receive", out)
+t.addChannel("radio_rec", out)
 print "Activate debug message on channel server"
 t.addChannel("server", out)
 
@@ -130,7 +130,7 @@ for line in lines:
             mid_compl = 0
             sys.stdout.write("#")
             sys.stdout.flush()
-        for i in range(1, 8):
+        for i in range(1, 9):
             t.getNode(i).addNoiseTraceReading(val)
 print "Done!"
 

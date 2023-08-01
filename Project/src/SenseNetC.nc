@@ -34,49 +34,29 @@ module SenseNetC @safe() {
 
 } implementation {
 
+     message_t globalpacket;
+
+    // Variables to store the message to send
+    message_t queued_packet;
+    uint16_t queue_addr;
+
+    
     // Time delay in milli seconds
     uint16_t time_delays[8] = {40, 60, 45, 50, 55, 30, 30, 75};
 
-    message_t global_packet;
-    message_t queued_packet;
 
-    // TODO: comments
-    last_message_received last_sensor_messages[SENSOR_NODES];
-
-    // Variable for storing radio interface occupation status
     bool locked;
-
-    // Variable for storing ACK reception status
-    ack_status_t ack_rec_status;
-
-    uint16_t msg_count = 0;
-
-
-    // TODO: comments
-    void initialize_ack_rec_status() {
-
-        ack_rec_status.ack_received = FALSE;
     
-    }
+    // Counter to update message id
+    uint16_t counter;
 
-    // TODO: comments
-    void initialize_server_message_list() {
-        
-        uint16_t i = 0;
 
-        for (i = 0; i < SENSOR_NODES; i++) {
-            last_sensor_messages[i].msg_id = -1;
-            last_sensor_messages[i].retransmitted = FALSE;
-        }
 
-    }
 
     /*
-    * TODO: comments
-    * 
     * Function to be used when performing the send after the receive message event.
     * It stores the packet and address into a global variable and start the timer execution to schedule the send.
-    * It allows to send only one packet at a time (one packet at a time is sent in the channel)
+    * It allows the sending of only one message for each REQ and REP type
     * @Input:
     *       address: packet destination address
     *       packet: full packet to be sent (Not only Payload)
@@ -84,121 +64,49 @@ module SenseNetC @safe() {
     *
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-    bool generate_send (message_t* packet){
+    bool generate_send (uint16_t address, message_t* packet, uint8_t type){
 
         if (call Timer0.isRunning()) {
             return FALSE;
         } else {
-            call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-            queued_packet = *packet;
+            if (type == 1) {
+                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+                queued_packet = *packet;
+                queue_addr = address;
+            } else if (type == 0) {
+                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+                queued_packet = *packet;
+                queue_addr = address;   
+            }
         }
-                            
-        return TRUE;
 
+        return TRUE;
     }
 
     /* 
-    * TODO: comments
-    * 
     * actual_send checks if another message is being sent and in case it is not then it calls
     * AMSend.send to send the new message received as pointer packet. Variable locked is used
-    * for the check: if it is TRUE it means that a message is being sent (radio interface is occupied) and FALSE value is 
-    * returned, if it is FALSE then no message is being sent and a TRUE value is returned. Multiple
-    * messages are sent in case the node is a gateway, othherwise only one message is sent.
+    * for the check: if it is TRUE it means that a message is being sent and FALSE value is 
+    * returned, if it is FALSE then no message is being sent and a TRUE value is returned
     * @Input: 
     *       address: packet destination address
     *       packet: packet to be sent (not only payload)
     * @Output: 
     *       boolean variable: it is TRUE when message could be sent, FALSE otherwise
     */
-    bool actual_send (message_t* packet) {
-
+    bool actual_send (uint16_t address, message_t* packet){
+        
         if (locked) {
 
             return FALSE;
         
-        } else {
+        }
+        else {
 
-            sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
-
-            uint8_t gateway_1 = SENSOR_NODES + GATEWAY_NODES -1;
-            uint8_t gateway_2 = SENSOR_NODES + GATEWAY_NODES;
-
-            if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
-
-                payload_p->destination = gateway_1;
-
-                if (call AMSend.send(gateway_1, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u passing by gateway 1 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination); 
-                    locked = TRUE;
-                } else  {
-                    // Generate error message
-                    dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from %u to %u passing by gateway 1 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination);
-                }
-
-                payload_p->destination = gateway_2;
-
-                if (call AMSend.send(gateway_2, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u passing by gateway 2 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination); 
-                    locked = TRUE;
-                } else  {
-                    // Generate error message
-                    dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from %u to %u passing by gateway 2 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination);
-                }
-
-            } else if (TOS_NODE_ID == 1) {
-
-                payload_p->destination = gateway_1;
-                
-                if (call AMSend.send(gateway_1, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u passing by gateway 1 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination);
-                    locked = TRUE;
-                } else {
-                    dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from %u to %u passing by gateway 1 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, payload_p->destination);
-                }    
-
-            } else if (TOS_NODE_ID == 3 || TOS_NODE_ID == 5) {
-
-                payload_p->destination = gateway_2;
-                
-                if (call AMSend.send(gateway_2, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u passing by gateway 2 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination); 
-                    locked = TRUE;
-                } else {
-                    dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from %u to %u passing by gateway 2 (Node %u).\n", payload_p->type, payload_p->msg_id, payload_p->sender, SERVER_NODE, payload_p->destination);
-                }
-
-            } else if (TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
-                                
-                if (payload_p->type == 0) {
-                    
-                    if (call AMSend.send(SERVER_NODE, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                        dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u.\n", payload_p->type, payload_p->msg_id, TOS_NODE_ID, SERVER_NODE);
-                        locked = TRUE;
-                    } else {
-                        dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from %u to %u.\n", payload_p->type, payload_p->msg_id, TOS_NODE_ID, SERVER_NODE);                   
-                    }
-
-                } else {
-                    
-                    if (call AMSend.send(payload_p->destination, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                        dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from %u to %u.\n", payload_p->type, payload_p->msg_id, payload_p->sender, payload_p->destination);
-                        locked = TRUE;
-                    } else {
-                        dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from %u to %u.\n", payload_p->type, payload_p->msg_id, payload_p->sender, payload_p->destination);                   
-                    }
-
-                }
-
-            } else if (TOS_NODE_ID == SERVER_NODE) {
-                
-                if (call AMSend.send(payload_p->sender, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                    dbg("radio_send", "[RADIO_SEND] Sending message of type %u with id %u from Server (Node %u) to %u passing by gateway %u (Node %u).\n", payload_p->type, payload_p->msg_id, SERVER_NODE, payload_p->destination, payload_p->sender - SENSOR_NODES, payload_p->sender);
-                    locked = TRUE;
-                } else {
-                    dbg("radio_send", "[RADIO_SEND] Error sending message of type %u with id %u from Server (Node %u) to %u passing by gateway %u (Node %u).\n", payload_p->type, payload_p->msg_id, SERVER_NODE, payload_p->destination, payload_p->sender - SENSOR_NODES, payload_p->sender);
-                }  
-
+            if (call AMSend.send(address, packet, sizeof(sense_msg_t)) == SUCCESS) {
+                sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+                dbg("radio_send", "[RADIO_SEND] Sending message of type %u from %u to %u passing by %u.\n", payload_p->type, payload_p->sender, payload_p->destination, address); 
+                locked = TRUE;
             }
 
         }
@@ -207,19 +115,21 @@ module SenseNetC @safe() {
 
     }
 
+	
+	void initialize_counter(){
+		counter = 0;
+	}
+
 
     //***************** Boot interface ********************//
     event void Boot.booted() {
 
         dbg("boot", "[BOOT] Application booted for node %u.\n", TOS_NODE_ID);
-
-        if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= SENSOR_NODES) {
-            initialize_ack_rec_status();
-        } else if (TOS_NODE_ID == SERVER_NODE) {
-            initialize_server_message_list();
+        
+        if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
+            initialize_counter();
+        	dbg("init", "[INIT] Counter table initialized for node %u.\n", TOS_NODE_ID);
         }
-
-        dbg("timer0", "PROVA PROVA PROVA.\n");
         
         // When the device is booted, the radio is started
         call AMControl.start();
@@ -235,7 +145,7 @@ module SenseNetC @safe() {
 
             dbg("radio", "[RADIO] Radio successfully started for node %u.\n", TOS_NODE_ID);
 
-            switch(TOS_NODE_ID) {
+             switch(TOS_NODE_ID) {
                 case 1: 
                     call Timer1.startPeriodic(2000);
                     break;
@@ -259,9 +169,9 @@ module SenseNetC @safe() {
         // If the radio didn't turn on successfully, the start is performed again
         else {
             
+            // TODO print something for the debugging
             dbg("radio", "[RADIO] Radio starting failed for node %u...restarting.\n", TOS_NODE_ID);
             call AMControl.start();
-
         }
 
     }
@@ -298,70 +208,115 @@ module SenseNetC @safe() {
     * Timer triggered to perform the send.
     * MANDATORY: DO NOT MODIFY THIS FUNCTION
     */
-        dbg("timer0", "[TIMER0] Timer 0 fired out for node %u.\n", TOS_NODE_ID);
-        actual_send(&queued_packet);
+
+        actual_send (queue_addr, &queued_packet);
     }
 
     /*
-    * Implement here the logic to trigger the Sensor Node to send the data packet to the gateways.
+    * Implement here the logic to trigger the Node 1 to send the first REQ packet
     */
     event void Timer1.fired() {
-
-        dbg("timer1", "[TIMER1] Timer fired out for node %u.\n", TOS_NODE_ID);   
-
-        if(TOS_NODE_ID <= SENSOR_NODES){
-
-            sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&global_packet, sizeof(sense_msg_t));
-            
-            payload_p->type = 0;
-            payload_p->msg_id = msg_count;
-            msg_count++;
-            payload_p->data = call Random.rand16(); // Generate random integer
-            payload_p->sender = TOS_NODE_ID;
-
-            generate_send(&global_packet);
-
-            // Reset the ack_received status
-            ack_rec_status.sense_msg = *payload_p;
-            ack_rec_status.ack_received = FALSE;
-            call Timer2.startOneShot(1000);
-        }
-    }
-
-    /*
-    * Implementation of the logic to trigger the retransmission of the data packet to the gateways in case of 
-    * no ACK received in a 1s window.
-    */
-    event void Timer2.fired() {
-        // This code is executed when the Timer2 expires.
-
-        dbg("timer2", "[TIMER2] Timer fired out for node %u.\n", TOS_NODE_ID);
+    
+        // a pointer to globalpacket (message_t variable) is declared and assigned to payload_p  
+        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
+        uint16_t addr;
         
-        // Control if the ACK has been received
-        if(ack_rec_status.ack_received == FALSE){
-            
-            // If the ACK has not been received, the packet is retransmitted
-            dbg("timer2", "[TIMER2] ACK not received by node %u.\n", TOS_NODE_ID);
-            generate_send(&global_packet);
-
-        }else{
-            // If the ACK has been received, the packet is not retransmitted
-            dbg("timer2", "[TIMER2] ACK received by node %u.\n", TOS_NODE_ID);
+        dbg("timer1", "[TIMER1] Timer fired out.\n");
+        
+        if (payload_p == NULL){
+            return;
         }
-
+        
+        // When Timer1 fires out, the sensor prepares a data packet
+        if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
+        
+        	// data packet is prepared for gateway 1	
+        	addr = 6;
+        	
+		    payload_p->type = 0;
+		    payload_p->msg_id = counter;
+		    payload_p->sender = TOS_NODE_ID;
+		    payload_p->destination = addr;
+		    payload_p->data = call Random.rand16(); // Generate random integer
+			
+		
+		    // The data packet is sent to gateway 1
+		    generate_send(addr, &globalpacket, 0);
+		    
+		    // DO WE NEED TO PREPARE A NEW POINTER TO GLOBALPACKET?
+		    
+		    // data packet is prepared for gateway 2
+		    addr = 7;
+        	
+		    payload_p->type = 0;
+		    payload_p->msg_id = counter;
+		    payload_p->sender = TOS_NODE_ID;
+		    payload_p->destination = addr;
+		    payload_p->data = call Random.rand16(); // Generate random integer
+		    
+		    // Increase message id counter
+		    counter++;
+			
+		
+		    // The data packet is sent to gateway 2
+		    generate_send(addr, &globalpacket, 0);
+		    
+		}else if(TOS_NODE_ID == 1){
+		
+		    // data packet is prepared for gateway 1	
+        	addr = 6;
+        	
+		    payload_p->type = 0;
+		    payload_p->msg_id = counter;
+		    payload_p->sender = TOS_NODE_ID;
+		    payload_p->destination = addr;
+		    payload_p->data = call Random.rand16(); // Generate random integer
+		    
+		    // Increase message id counter
+		    counter++;
+			
+		
+		    // The data packet is sent to gateway 1
+		    generate_send(addr, &globalpacket, 0);
+		
+		}else if(TOS_NODE_ID == 3 || TOS_NODE_ID == 5){
+		    // data packet is prepared for gateway 2
+		    addr = 7;
+        	
+		    payload_p->type = 0;
+		    payload_p->msg_id = counter;
+		    payload_p->sender = TOS_NODE_ID;
+		    payload_p->destination = addr;
+		    payload_p->data = call Random.rand16(); // Generate random integer
+		    		    
+		    // Increase message id counter
+		    counter++;
+			
+		
+		    // The data packet is sent to gateway 2
+		    generate_send(addr, &globalpacket, 0);
+		}else
+			 dbg("timer1", "[TIMER1] Error : selected node doesn't exist.\n");
     }
 
+	event void Timer2.fired() {
+    /*
+    * Timer triggered to perform the send.
+    * MANDATORY: DO NOT MODIFY THIS FUNCTION
+    */
+	 dbg("timer2", "[TIMER2] Timer fired out.\n");
+        
+    }
+
+	
 
     //***************** Receive interface *****************//
     event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
     /*
-    * If Network Server Parse the receive packet, implement functions and call generate_send with the ACK message packet and the ADDRESS of the destination sensor.
-      If Gateway parse ACK message and forward to the destination sensor.
-      If Sensor Node don't do anything
-
-      TODO: commemts
-    */  
-        sense_msg_t* new_mess = NULL;
+    * Parse the receive packet.
+    * Implement all the functionalities.
+    * Perform the packet send using the generate_send function if needed.
+    */
 
         if (len != sizeof(sense_msg_t)) {
             return bufPtr;
@@ -369,77 +324,75 @@ module SenseNetC @safe() {
 
             // Variable that contains the payload of the received message
             sense_msg_t* mess = (sense_msg_t*) payload;
-            
-            new_mess = (sense_msg_t*) call Packet.getPayload(&global_packet, sizeof(sense_msg_t))
+            // Variable that will contain the payload of the message that will be sent
+            sense_msg_t* new_mess = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
+            uint16_t addr;
+ 
 
-            dbg("radio_receive", "[RADIO_RECEIVE] Received a message of type %u with id %u at node %u.\n", mess->type, mess->msg_id, TOS_NODE_ID);
-            
-            // Variable that contains the message that will be sent from the current node
+            dbg("radio_rec", "[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
+
             if (new_mess == NULL) {
-                dbgerror("radio_receive", "[RADIO_RECEIVE] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
+                dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
                 return bufPtr;
             }
-    
+			
+            // A data message is received, debug messages are sent
+            if (mess->type == 0) {
 
-            if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= SENSOR_NODES) {
+                // If the current node is node 7, that is the destination of the data message, we don't need to forward packets anymore
+                if (TOS_NODE_ID == 8) {
 
-                if (mess->type == 1) {
+                    // WE'RE DONE
+                    dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
 
-                    dbg("radio_receive", "[RADIO_RECEIVE] Received ACK for message with id %u at node %u.\n", mess->msg_id, TOS_NODE_ID);
-                    ack_rec_status.ack_received = TRUE;
-
-                } else {
-
-                    dbgerror("radio_receive", "[RADIO_RECEIVE] ERROR: Node %u, which is a sensor node, receives a data message.\n", TOS_NODE_ID)
-
-                }
-
-            } else if (TOS_NODE_ID > SENSOR_NODES && TOS_NODE_ID <= SENSOR_NODES + GATEWAY_NODES) {
-                
-                new_mess->type = mess->type;
-                new_mess->msg_id = mess->msg_id;
-                new_mess->data = mess->data;
-                new_mess->sender = mess->sender;
-                new_mess->destination = mess->destination;
-                
-                generate_send(&global_packet);
-        
-            } else if (TOS_NODE_ID == SERVER_NODE) {
-
-                if (!(last_sensor_messages[mess->sender].msg_id == mess->msg_id)) {
-
-                    // TODO : Server forwards to MQTT and NODE-RED Servers
-
-                    dbg("server", "[SERVER] Received a message with new ID from %u, updating the field...\n", mess->sender);
-                    
-                    last_sensor_messages[mess->sender].msg_id = mess->msg_id;
-                    last_sensor_messages[mess->sender].retransmitted = FALSE;
-
-                    new_mess->type = 1;
+                }else if( TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
+               		dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
+                }else
+                	dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET");
+           
+           }else if(mess->type == 1){
+           		if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
+           			 dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
+           		}else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
+           		 	dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
+           		}else
+           			dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET");
+           }else
+           		dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
+           		
+           		
+           // Logic implementation at the receiver 
+           
+           if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
+           		if(mess->type == 0){
+           			// Forward data packet to Server node
+           			addr = 8;
+           			generate_send(addr, &globalpacket, 0);
+           		}else if(mess->type == 1){
+           			// Forward ack to correspondent sensor node
+           			addr = mess->destination;
+           			generate_send(addr, &globalpacket, 1);
+           		}else
+           			dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE");
+           }else if(TOS_NODE_ID == 8){
+           		    new_mess->type = 1;
                     new_mess->msg_id = mess->msg_id;
                     new_mess->data = 0;
                     new_mess->sender = mess->destination;
                     new_mess->destination = mess->sender;
-
-                    generate_send(&global_packet);
-
-                } else if (last_sensor_messages[mess->sender].retransmitted == FALSE) {
                     
-                    dbg("server", "[SERVER] Received again the last message (same ID). Retransmitting the ACK...\n");
+                    addr = new_mess->sender;
+                    generate_send(addr, &globalpacket, 1);
                     
-                    last_sensor_messages[mess->sender].retransmitted = TRUE;
-
-                    new_mess->type = 1;
-                    new_mess->msg_id = mess->msg_id;
-                    new_mess->data = 0;
-                    new_mess->sender = mess->destination;
-                    new_mess->destination = mess->sender;
-
-                    generate_send(&global_packet);
-
-                }
-
-            }
+                    // TODO Implementation of dup-ACK suppression
+           }else if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
+           		// TODO Implementation of data packet retransmission
+           }else
+           		dbg("radio_rec", "[RADIO_REC] ERROR : INVALID NODE");
+            
+            return bufPtr;
         }
+        
+        
     }
 }
