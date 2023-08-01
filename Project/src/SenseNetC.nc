@@ -48,6 +48,12 @@ module SenseNetC @safe() {
     // Counter to update message id
     uint16_t counter;
 
+    // TODO: comments
+    last_message_transmitted msg_tx;
+
+    // TODO: comments
+    last_message_received msg_from_sensor[SENSOR_NODES];
+
 
     /*
     * TODO: comments
@@ -102,6 +108,12 @@ module SenseNetC @safe() {
 
             if (call AMSend.send(address, packet, sizeof(sense_msg_t)) == SUCCESS) {
                 sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+
+                if (payload_p == NULL) {
+                    dbgerror("radio_send", "[RADIO_SEND] ERROR ALLOCATING MEMORY.\n");
+                    return FALSE;
+                }
+
                 dbg("radio_send", "[RADIO_SEND] Sending message of type %u from %u to %u passing by %u.\n", payload_p->type, payload_p->sender, payload_p->destination, address);
                 locked = TRUE;
             }
@@ -119,6 +131,33 @@ module SenseNetC @safe() {
         counter = 0;
     }
 
+    /*
+    * TODO: comments
+    */
+    void initialize_last_message_received(){
+        
+        uint8_t i;
+    
+        for(i = 0; i < SENSOR_NODES; i++) {
+            msg_from_sensor[i].msg_id = -1;
+            msg_from_sensor[i].gateway = -1;
+            msg_from_sensor[i].retransmitted = FALSE;
+        }
+
+    }
+
+    void set_last_message_transmitted(sense_msg_t *m) {
+
+        msg_tx.sense_msg.type = m->type;
+        msg_tx.sense_msg.msg_id = m->msg_id;
+        msg_tx.sense_msg.data = m->data;
+        msg_tx.sense_msg.sender = m->sender;
+        msg_tx.sense_msg.destination = m->destination;
+
+        msg_tx.ack_received = FALSE;
+
+    }
+
 
     //***************** Boot interface ********************//
     /*
@@ -131,6 +170,10 @@ module SenseNetC @safe() {
         if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
             initialize_counter();
             dbg("init", "[INIT] Counter table initialized for node %u.\n", TOS_NODE_ID);
+        }
+
+        if (TOS_NODE_ID == SERVER_NODE) {
+            initialize_last_message_received();
         }
 
         // When the device is booted, the radio is started
@@ -263,6 +306,12 @@ module SenseNetC @safe() {
             // The data packet is sent to gateway 2
             generate_send(addr, &globalpacket, 0);
 
+            msg_tx.sense_msg.type = payload_p->type;
+            msg_tx.sense_msg.sender = payload_p->sender;
+            msg_tx.sense_msg.destination = payload_p->destination;
+            msg_tx.sense_msg.data = payload_p->data;
+            msg_tx.sense_msg.msg_id = payload_p->msg_id;
+
         } else if (TOS_NODE_ID == 1) {
 
             // data packet is prepared for gateway 1 
@@ -280,6 +329,12 @@ module SenseNetC @safe() {
             // The data packet is sent to gateway 1
             generate_send(addr, &globalpacket, 0);
 
+            msg_tx.sense_msg.type = payload_p->type;
+            msg_tx.sense_msg.sender = payload_p->sender;
+            msg_tx.sense_msg.destination = payload_p->destination;
+            msg_tx.sense_msg.data = payload_p->data;
+            msg_tx.sense_msg.msg_id = payload_p->msg_id;
+
         } else if (TOS_NODE_ID == 3 || TOS_NODE_ID == 5){
 
             // data packet is prepared for gateway 2
@@ -296,21 +351,97 @@ module SenseNetC @safe() {
 
             // The data packet is sent to gateway 2
             generate_send(addr, &globalpacket, 0);
+
+            msg_tx.sense_msg.type = payload_p->type;
+            msg_tx.sense_msg.sender = payload_p->sender;
+            msg_tx.sense_msg.destination = payload_p->destination;
+            msg_tx.sense_msg.data = payload_p->data;
+            msg_tx.sense_msg.msg_id = payload_p->msg_id;
         
         } else {
 
             dbg("timer1", "[TIMER1] Error : selected node doesn't exist.\n");
 
         }
+
+        call Timer2.startOneShot(1000);
     }
 
     /*
     * TODO: comments
-    * TODO: implement message retrasmission
     */
     event void Timer2.fired() {
     
+        // a pointer to globalpacket (message_t variable) is declared and assigned to payload_p 
+        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
+        uint16_t addr;
+
+        if (payload_p == NULL){
+            return;
+        }
+
         dbg("timer2", "[TIMER2] Timer fired out.\n");
+
+        if (msg_tx.ack_received == FALSE) {
+
+            dbg("timer2", "[TIMER2] 1000ms passed and no ACK has been received. Going to retransmit...\n");
+
+            if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
+
+                // data packet is prepared for gateway 1 
+                addr = 6;
+
+                payload_p->type = msg_tx.sense_msg.type;
+                payload_p->msg_id = msg_tx.sense_msg.msg_id;
+                payload_p->sender = msg_tx.sense_msg.sender;
+                payload_p->destination = addr;
+                payload_p->data = msg_tx.sense_msg.data;
+
+                // The data packet is sent to gateway 1
+                generate_send(addr, &globalpacket, 0);
+
+                // data packet is prepared for gateway 2
+                addr = 7;
+
+                payload_p->type = msg_tx.sense_msg.type;
+                payload_p->msg_id = msg_tx.sense_msg.msg_id;
+                payload_p->sender = msg_tx.sense_msg.sender;
+                payload_p->destination = addr;
+                payload_p->data = msg_tx.sense_msg.data;
+
+                // The data packet is sent to gateway 2
+                generate_send(addr, &globalpacket, 0);
+
+            } else if (TOS_NODE_ID == 1) {
+
+                // data packet is prepared for gateway 1 
+                addr = 6;
+
+                payload_p->type = msg_tx.sense_msg.type;
+                payload_p->msg_id = msg_tx.sense_msg.msg_id;
+                payload_p->sender = msg_tx.sense_msg.sender;
+                payload_p->destination = addr;
+                payload_p->data = msg_tx.sense_msg.data;
+
+                // The data packet is sent to gateway 1
+                generate_send(addr, &globalpacket, 0);
+
+            } else if (TOS_NODE_ID == 3 || TOS_NODE_ID == 5){
+
+                // data packet is prepared for gateway 2
+                addr = 7;
+
+                payload_p->type = msg_tx.sense_msg.type;
+                payload_p->msg_id = msg_tx.sense_msg.msg_id;
+                payload_p->sender = msg_tx.sense_msg.sender;
+                payload_p->destination = addr;
+                payload_p->data = msg_tx.sense_msg.data; // Generates random integer
+
+                // The data packet is sent to gateway 2
+                generate_send(addr, &globalpacket, 0);
+            
+            }
+        }
         
     }
 
@@ -420,16 +551,44 @@ module SenseNetC @safe() {
 
             } else if (TOS_NODE_ID == 8) {
 
-                new_mess->type = 1;
-                new_mess->msg_id = mess->msg_id;
-                new_mess->data = 0;
-                new_mess->sender = mess->destination;
-                new_mess->destination = mess->sender;
-                    
-                addr = new_mess->sender;
-                generate_send(addr, &globalpacket, 1);
-                dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
-                dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+                dbg("radio_rec", "[RADIO_REC] WE ARE THE SERVER AND WE HAVE last_message_received[mess->sender - 1].msg_id = %u and mess->msg_id = %u.\n", msg_from_sensor[mess->sender - 1].msg_id, mess->msg_id);
+
+                if (msg_from_sensor[mess->sender - 1].msg_id != mess->msg_id) {
+
+                    msg_from_sensor[mess->sender - 1].msg_id = mess->msg_id;
+                    msg_from_sensor[mess->sender - 1].gateway = mess->destination;
+                    msg_from_sensor[mess->sender - 1].retransmitted = FALSE;
+
+                    new_mess->type = 1;
+                    new_mess->msg_id = mess->msg_id;
+                    new_mess->data = 0;
+                    new_mess->sender = mess->destination;
+                    new_mess->destination = mess->sender;
+                        
+                    addr = new_mess->sender;
+                    generate_send(addr, &globalpacket, 1);
+                    dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
+                    dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+
+                } else if (msg_from_sensor[mess->sender - 1].gateway == mess->destination &&
+                    msg_from_sensor[mess->sender - 1].retransmitted == FALSE) {
+
+                    msg_from_sensor[mess->sender - 1].retransmitted = TRUE;
+
+                    new_mess->type = 1;
+                    new_mess->msg_id = mess->msg_id;
+                    new_mess->data = 0;
+                    new_mess->sender = mess->destination;
+                    new_mess->destination = mess->sender;
+
+                    addr = new_mess->sender;
+                    generate_send(addr, &globalpacket, 1);
+                    dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
+                    dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+
+                } else {
+                    dbg("radio_rec", "[RADIO_REC] RECEIVING A DUPLICATE AND DISCARDING IT.\n");
+                }
 
                 // TODO Implementation of dup-ACK suppression
 
@@ -441,7 +600,7 @@ module SenseNetC @safe() {
             } else {
 
                 dbg("radio_rec", "[RADIO_REC] ERROR : INVALID NODE\n");
-                
+
             }
             
             return bufPtr;

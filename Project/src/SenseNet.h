@@ -13,13 +13,14 @@ typedef nx_struct sense_msg {
   nx_uint16_t destination; // Destination node address
 } sense_msg_t;
 
-typedef struct ack_status_msg {
+typedef struct last_message_transmitted {
   sense_msg_t sense_msg;
   bool ack_received;
-} ack_status_t;
+} last_message_transmitted;
 
 typedef struct last_message_received {
   uint16_t msg_id;
+  uint16_t gateway;
   bool retransmitted;
 } last_message_received;
 
