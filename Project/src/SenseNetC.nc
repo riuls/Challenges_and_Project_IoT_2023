@@ -12,7 +12,6 @@
  *
  * @author Mario Cela
  * @author Riaz Luis Ahmed
- * @date   July 25 2023
  */
 
 module SenseNetC @safe() {
@@ -40,33 +39,36 @@ module SenseNetC @safe() {
     message_t queued_packet;
     uint16_t queue_addr;
 
-    // Time delay in milli seconds
+    // Time delay in milli seconds that emulates transmission delays
     uint16_t time_delays[8] = {40, 60, 45, 50, 55, 30, 30, 75};
 
+    // Variable used to grant access to the send function to one process at the time
     bool locked;
 
     // Counter to update message id
     uint16_t counter;
 
-    // TODO: comments
+    /*
+    * Variable used just by the sensor nodes.
+    * Variable used to store the last message sent by the node.
+    * When an ack is received, the field ack_received will be set to TRUE.
+    * ack_received is checked when Timer2 fires out: if it is still set to FALSE, the retranmission process starts.
+    */
     last_message_transmitted msg_tx;
 
-    // TODO: comments
+    /*
+    * Variable used just by the server.
+    * Variable used to store the last message received by the server for all the sensor nodes.
+    * The purpose of the variable is to give the needed information to suppress duplicates and to retransmit once
+    * an ack message.
+    */
     last_message_received msg_from_sensor[SENSOR_NODES];
 
 
     /*
-    * TODO: comments
-    * 
-    * Function to be used when performing the send after the receive message event.
-    * It stores the packet and address into a global variable and start the timer execution to schedule the send.
-    * It allows the sending of only one message for each REQ and REP type
-    * @Input:
-    *       address: packet destination address
-    *       packet: full packet to be sent (Not only Payload)
-    *       type: payload message type
-    *
-    * MANDATORY: DO NOT MODIFY THIS FUNCTION
+    * The function is used when a node wants to send a message.
+    * The first step for the send is to call the generate_send which will launch a Timer to emulate
+    * the transmission delay. The packet and its destination are then saved into queued_packet and queue_addr.
     */
     bool generate_send (uint16_t address, message_t* packet, uint8_t type){
 
@@ -88,17 +90,10 @@ module SenseNetC @safe() {
     }
 
     /* 
-    * TODO: comments
-    * 
-    * actual_send checks if another message is being sent and in case it is not then it calls
-    * AMSend.send to send the new message received as pointer packet. Variable locked is used
-    * for the check: if it is TRUE it means that a message is being sent and FALSE value is 
-    * returned, if it is FALSE then no message is being sent and a TRUE value is returned
-    * @Input: 
-    *       address: packet destination address
-    *       packet: packet to be sent (not only payload)
-    * @Output: 
-    *       boolean variable: it is TRUE when message could be sent, FALSE otherwise
+    * The function is called when the Timer that emulates the transmission delay fires out.
+    * First of all, a lock grants the access to the function to one process at the time.
+    * Then, the send function provided by the AMSend interface is called.
+    * The lock is set to true until the send will be completed (means until sendDone will be triggered).
     */
     bool actual_send (uint16_t address, message_t* packet){
 
@@ -125,14 +120,17 @@ module SenseNetC @safe() {
     }
 
     /*
-    * TODO: comments
+    * Each node when booted will initialize its counter to 0.
+    * Notice that the key of a message is not given just by the id, but by the couple <nodeid, msgid>.
+    * So, for example, all the sensor nodes will have a message with msg_id = 0.
     */
     void initialize_counter(){
         counter = 0;
     }
 
     /*
-    * TODO: comments
+    * When the server is booted, it initializes the array containing the last message 
+    * it received by all the sensor nodes.
     */
     void initialize_last_message_received(){
         
@@ -146,6 +144,10 @@ module SenseNetC @safe() {
 
     }
 
+    /*
+    * This message is used to set the msg_tx variable with the values of 
+    * the new message the sensor node is transmitting.
+    */
     void set_last_message_transmitted(sense_msg_t *m) {
 
         msg_tx.sense_msg.type = m->type;
@@ -158,34 +160,40 @@ module SenseNetC @safe() {
 
     }
 
+    /*
+    * The function sends to node-red the value that the server has just received. 
+    * It works by performing the printf of the value, which will be printed on the output console on
+    * Cooja (the simulation environment we used) and then forwarded to node-red.
+    */
     static void send_data_to_node_red(sense_msg_t* message) {    
-    // Convert data to string format
-    char buffer[128];    
-    if(message->sender == 1){     
-        snprintf(buffer, sizeof(buffer), "fieldone:%u", message->data);
-        }else if(message->sender == 2){     
-        snprintf(buffer, sizeof(buffer), "fieldtwo:%u", message->data);
-        }else if(message->sender == 3){     
-        snprintf(buffer, sizeof(buffer), "fieldthree:%u", message->data);
-        }else      
-        return;
+        // Convert data to string format
+        char buffer[128];    
+        if (message->sender == 1) {
+            snprintf(buffer, sizeof(buffer), "fieldone:%u", message->data);
+        } else if (message->sender == 2) {
+            snprintf(buffer, sizeof(buffer), "fieldtwo:%u", message->data);
+        } else if (message->sender == 3) {
+            snprintf(buffer, sizeof(buffer), "fieldthree:%u", message->data);
+        } else {
+            return;
+        }
 
-    // print the json string
-        printf("%s\n", buffer);   
+        printf("[SERVER] Sending to NODE-RED the value %u sent by node %u.\n", message->data, message->sender);
+        printf("%s\n", buffer);
     }
 
 
     //***************** Boot interface ********************//
     /*
-    * TODO: comments
+    * When a node is booted it initializes the variable(s) it will use along the execution.
+    * Then, all the nodes start the radio.
     */
     event void Boot.booted() {
 
-        dbg("boot", "[BOOT] Application booted for node %u.\n", TOS_NODE_ID);
+        printf("[BOOT] Application booted for node %u.\n", TOS_NODE_ID);
 
         if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
             initialize_counter();
-            dbg("init", "[INIT] Counter table initialized for node %u.\n", TOS_NODE_ID);
         }
 
         if (TOS_NODE_ID == SERVER_NODE) {
@@ -200,7 +208,9 @@ module SenseNetC @safe() {
 
     //*************** AMControl interface *****************//
     /*
-    * TODO: comments
+    * If the start of the radio failed, the start function is called again.
+    * Otherwise, if the start was successfull, if the node is a sensor, it will launch a periodic timer
+    * which defines the period between trasmissions of new messages.
     */
     event void AMControl.startDone(error_t err) {
 
@@ -240,6 +250,9 @@ module SenseNetC @safe() {
 
     }
 
+    /*
+    * Not used in our case, but needed to execute the program
+    */
     event void AMControl.stopDone(error_t err) {
 
         dbg("radio", "[RADIO] Radio stopped for node %u.\n", TOS_NODE_ID);
@@ -250,26 +263,30 @@ module SenseNetC @safe() {
     //***************** AMSend interface ******************//
     /* 
     * This event is triggered when a message is sent.
+    * When the send process terminates, the lock is put to FALSE in order to allow other process to use
+    * the radio transmission.
     */
     event void AMSend.sendDone(message_t* bufPtr, error_t error) {
 
         if (error == SUCCESS) {
 
             dbg("radio_send", "[RADIO_SEND] Packet sent from %u at time %s.\n", TOS_NODE_ID, sim_time_string());
-            locked = FALSE;
 
         } else {
 
             dbgerror("radio_send", "[RADIO_SEND] Send done error for node %u!\n", TOS_NODE_ID);
 
         }
+
+        locked = FALSE;
     
     }
 
 
     //****************** Timer interface ******************//
     /*
-    * Timer triggered to perform the send.
+    * The timer is called by the generate_send function to emulate the transmission delay.
+    * So, once the timer fires out, the actual send can be performed.
     */
     event void Timer0.fired() {
 
