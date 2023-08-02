@@ -158,19 +158,20 @@ module SenseNetC @safe() {
 
     }
 
-    static void send_data_to_node_red(sense_msg_t* message) {   
-    char json_buffer[128];    uint16_t randn;
-    randn = call Random.rand16();  
-    if(message->sender == 1){
-        snprintf(json_buffer, sizeof(json_buffer), "field1=%u&status=MQTTPUBLISH", randn);    
-     }else if(message->sender == 2){
-        snprintf(json_buffer, sizeof(json_buffer), "field2=%u&status=MQTTPUBLISH", randn);    
-     }else if(message->sender == 3){
-        snprintf(json_buffer, sizeof(json_buffer), "field3=%u&status=MQTTPUBLISH", randn);    
-     }else
+    static void send_data_to_node_red(sense_msg_t* message) {    
+    // Convert data to string format
+    char buffer[128];    
+    if(message->sender == 1){     
+        snprintf(buffer, sizeof(buffer), "fieldone:%u", message->data);
+        }else if(message->sender == 2){     
+        snprintf(buffer, sizeof(buffer), "fieldtwo:%u", message->data);
+        }else if(message->sender == 3){     
+        snprintf(buffer, sizeof(buffer), "fieldthree:%u", message->data);
+        }else      
         return;
-    // print the json string    
-    printf("%s\n", json_buffer);
+
+    // print the json string
+        printf("%s\n", buffer);   
     }
 
 
