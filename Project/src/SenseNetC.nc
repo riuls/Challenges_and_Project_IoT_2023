@@ -158,6 +158,21 @@ module SenseNetC @safe() {
 
     }
 
+    static void send_data_to_node_red(sense_msg_t* message) {   
+    char json_buffer[128];    uint16_t randn;
+    randn = call Random.rand16();  
+    if(message->sender == 1){
+        snprintf(json_buffer, sizeof(json_buffer), "field1=%u&status=MQTTPUBLISH", randn);    
+     }else if(message->sender == 2){
+        snprintf(json_buffer, sizeof(json_buffer), "field2=%u&status=MQTTPUBLISH", randn);    
+     }else if(message->sender == 3){
+        snprintf(json_buffer, sizeof(json_buffer), "field3=%u&status=MQTTPUBLISH", randn);    
+     }else
+        return;
+    // print the json string    
+    printf("%s\n", json_buffer);
+    }
+
 
     //***************** Boot interface ********************//
     /*
@@ -360,7 +375,8 @@ module SenseNetC @safe() {
         
         } else {
 
-            dbg("timer1", "[TIMER1] Error : selected node doesn't exist.\n");
+            //dbg("timer1", "[TIMER1] Error : selected node doesn't exist.\n");
+            printf("[TIMER1] Error : selected node doesn't exist.\n");
 
         }
 
@@ -380,11 +396,13 @@ module SenseNetC @safe() {
             return;
         }
 
-        dbg("timer2", "[TIMER2] Timer fired out.\n");
+        //dbg("timer2", "[TIMER2] Timer fired out.\n");
+        printf("[TIMER2] Timer fired out.\n");
 
         if (msg_tx.ack_received == FALSE) {
 
-            dbg("timer2", "[TIMER2] 1000ms passed and no ACK has been received. Going to retransmit...\n");
+            //dbg("timer2", "[TIMER2] 1000ms passed and no ACK has been received. Going to retransmit...\n");
+            printf("[TIMER2] 1000ms passed and no ACK has been received. Going to retransmit...\n");
 
             if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
 
@@ -464,10 +482,12 @@ module SenseNetC @safe() {
             sense_msg_t* new_mess = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
             uint16_t addr;
  
-            dbg("radio_rec", "[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
+            //dbg("radio_rec", "[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
+            printf("[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
 
             if (new_mess == NULL) {
-                dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
+                //dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
+                printf("[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
                 return bufPtr;
             }
    
@@ -478,37 +498,44 @@ module SenseNetC @safe() {
                 if (TOS_NODE_ID == 8) {
 
                     // WE'RE DONE
-                    dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
+                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
+                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
 
                 } else if ( TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
                     
-                    dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
-                
+                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
+                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
+
                 } else {
 
-                    dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET\n");
-                
+                    //dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET\n");
+                    printf("[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET\n");
+
                 }
            
             } else if (mess->type == 1) {
 
                 if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
 
-                    dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
-                
+                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
+                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
+
                 } else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
 
-                    dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
-                
+                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
+                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
+
                 } else {
 
-                    dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET\n");
-                
+                    //dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET\n");
+                    printf("[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET\n");
+
                 }
 
             } else {
 
-                dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
+                //dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
+                printf("[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
 
             }
              
@@ -541,17 +568,24 @@ module SenseNetC @safe() {
                     addr = new_mess->destination;
                     generate_send(addr, &globalpacket, 1);
 
-                    dbg("radio_rec", "[RADIO_REC] GATEWAY RECEIVED ACK\n");
+                    //dbg("radio_rec", "[RADIO_REC] GATEWAY RECEIVED ACK\n");
+                    printf("[RADIO_REC] GATEWAY RECEIVED ACK\n");
 
                 } else {
 
-                    dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE\n");
-                
+                    //dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE\n");
+                    printf("[RADIO_REC] ERROR : INVALID MESSAGE TYPE\n");
+
                 }
 
             } else if (TOS_NODE_ID == 8) {
 
-                dbg("radio_rec", "[RADIO_REC] WE ARE THE SERVER AND WE HAVE last_message_received[mess->sender - 1].msg_id = %u and mess->msg_id = %u.\n", msg_from_sensor[mess->sender - 1].msg_id, mess->msg_id);
+                //dbg("radio_rec", "[RADIO_REC] WE ARE THE SERVER AND WE HAVE last_message_received[mess->sender - 1].msg_id = %u and mess->msg_id = %u.\n", msg_from_sensor[mess->sender - 1].msg_id, mess->msg_id);
+                printf("[RADIO_REC] WE ARE THE SERVER AND WE HAVE last_message_received[mess->sender - 1].msg_id = %u and mess->msg_id = %u.\n", msg_from_sensor[mess->sender - 1].msg_id, mess->msg_id);
+                
+                // Send data over the network using Cooja        
+                send_data_to_node_red(mess);
+                printfflush();
 
                 if (msg_from_sensor[mess->sender - 1].msg_id != mess->msg_id) {
 
@@ -567,9 +601,12 @@ module SenseNetC @safe() {
                         
                     addr = new_mess->sender;
                     generate_send(addr, &globalpacket, 1);
-                    dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
-                    dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
-
+                    //dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
+                    printf("[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
+                    
+                    //dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+                    printf("[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+                
                 } else if (msg_from_sensor[mess->sender - 1].gateway == mess->destination &&
                     msg_from_sensor[mess->sender - 1].retransmitted == FALSE) {
 
@@ -583,23 +620,29 @@ module SenseNetC @safe() {
 
                     addr = new_mess->sender;
                     generate_send(addr, &globalpacket, 1);
-                    dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
-                    dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+                    //dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
+                    printf("[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
+                    
+                    //dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+                    printf("[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
 
                 } else {
-                    dbg("radio_rec", "[RADIO_REC] RECEIVING A DUPLICATE AND DISCARDING IT.\n");
+                    //dbg("radio_rec", "[RADIO_REC] RECEIVING A DUPLICATE AND DISCARDING IT.\n");
+                    printf("[RADIO_REC] RECEIVING A DUPLICATE AND DISCARDING IT.\n");
                 }
 
                 // TODO Implementation of dup-ACK suppression
 
             } else if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
 
-                dbg("radio_rec", "[RADIO_REC] SENSOR RECEIVED ACK\n");
+                //dbg("radio_rec", "[RADIO_REC] SENSOR RECEIVED ACK\n");
+                printf("[RADIO_REC] SENSOR RECEIVED ACK\n");
                 // TODO Implementation of data packet retransmission
 
             } else {
 
-                dbg("radio_rec", "[RADIO_REC] ERROR : INVALID NODE\n");
+                //dbg("radio_rec", "[RADIO_REC] ERROR : INVALID NODE\n");
+                printf("[RADIO_REC] ERROR : INVALID NODE\n");
 
             }
             
