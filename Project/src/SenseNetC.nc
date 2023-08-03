@@ -25,7 +25,6 @@ module SenseNetC @safe() {
         interface Receive;
         interface Random;
 
-        // Common timer instance
         interface Timer<TMilli> as Timer0;
         interface Timer<TMilli> as Timer1;
         interface Timer<TMilli> as Timer2;
@@ -44,6 +43,15 @@ module SenseNetC @safe() {
 
     // Variable used to grant access to the send function to one process at the time
     bool locked;
+
+    /*
+    * In order to avoid possible concurrent try of sending a message to both the gateways
+    * for those sensor nodes that by topology are connected to them, we use this boolean
+    * which is checked when the sendDone event is triggered in order to understand if
+    * the previous transmission is referred to the first gateway or to the second.
+    * If it refers to the first gateway, then we prepare the packet to be sent to node 7.
+    */
+    bool transmitted_to_second_gateway = FALSE;
 
     // Counter to update message id
     uint16_t counter;
@@ -64,60 +72,6 @@ module SenseNetC @safe() {
     */
     last_message_received msg_from_sensor[SENSOR_NODES];
 
-
-    /*
-    * The function is used when a node wants to send a message.
-    * The first step for the send is to call the generate_send which will launch a Timer to emulate
-    * the transmission delay. The packet and its destination are then saved into queued_packet and queue_addr.
-    */
-    bool generate_send (uint16_t address, message_t* packet, uint8_t type){
-
-        if (call Timer0.isRunning()) {
-            return FALSE;
-        } else {
-            if (type == 1) {
-                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                queued_packet = *packet;
-                queue_addr = address;
-            } else if (type == 0) {
-                call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
-                queued_packet = *packet;
-                queue_addr = address;   
-            }
-        }
-
-        return TRUE;
-    }
-
-    /* 
-    * The function is called when the Timer that emulates the transmission delay fires out.
-    * First of all, a lock grants the access to the function to one process at the time.
-    * Then, the send function provided by the AMSend interface is called.
-    * The lock is set to true until the send will be completed (means until sendDone will be triggered).
-    */
-    bool actual_send (uint16_t address, message_t* packet){
-
-        if (locked) {
-            return FALSE;
-        } else {
-
-            if (call AMSend.send(address, packet, sizeof(sense_msg_t)) == SUCCESS) {
-                sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
-
-                if (payload_p == NULL) {
-                    dbgerror("radio_send", "[RADIO_SEND] ERROR ALLOCATING MEMORY.\n");
-                    return FALSE;
-                }
-
-                dbg("radio_send", "[RADIO_SEND] Sending message of type %u from %u to %u passing by %u.\n", payload_p->type, payload_p->sender, payload_p->destination, address);
-                locked = TRUE;
-            }
-
-        }
-
-        return TRUE;
-
-    }
 
     /*
     * Each node when booted will initialize its counter to 0.
@@ -145,16 +99,86 @@ module SenseNetC @safe() {
     }
 
     /*
+    * 
+    */
+    void create_data_message(sense_msg_t *msg, uint16_t addr) {
+
+        msg->type = 0;
+        msg->msg_id = counter;
+        msg->sender = TOS_NODE_ID;
+        msg->destination = addr;
+        msg->data = call Random.rand16() % 100; // Generates random integer
+
+    }
+
+    /*
+    * The function is used when a node wants to send a message.
+    * The first step for the send is to call the generate_send which will launch a Timer to emulate
+    * the transmission delay. The packet and its destination are then saved into queued_packet and queue_addr.
+    */
+    bool generate_send (uint16_t address, message_t* packet, uint8_t type){
+
+        if (call Timer0.isRunning()) {
+
+            return FALSE;
+
+        } else {
+
+            call Timer0.startOneShot( time_delays[TOS_NODE_ID-1] );
+            queued_packet = *packet;
+            queue_addr = address;
+
+        }
+
+        return TRUE;
+    }
+
+    /* 
+    * The function is called when the Timer that emulates the transmission delay fires out.
+    * First of all, a lock grants the access to the function to one process at the time.
+    * Then, the send function provided by the AMSend interface is called.
+    * The lock is set to true until the send will be completed (means until sendDone will be triggered).
+    */
+    bool actual_send (uint16_t address, message_t* packet){
+
+        if (locked) {
+            return FALSE;
+        } else {
+
+            if (call AMSend.send(address, packet, sizeof(sense_msg_t)) == SUCCESS) {
+                sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(packet, sizeof(sense_msg_t));
+
+                if (payload_p == NULL) {
+                    printf("[RADIO_SEND] NODE %u: ERROR ALLOCATING MEMORY.\n", TOS_NODE_ID);
+                    return FALSE;
+                }
+
+                if (payload_p->type == 0) {
+                    printf("[RADIO_SEND] NODE %u: Sending a data message with ID %u, data %u, generated from node %u to the server.\n", TOS_NODE_ID, payload_p->msg_id, payload_p->data, payload_p->sender);
+                } else {
+                    printf("[RADIO_SEND] NODE %u: Sending an ack message with ID %u as response from the server to node %u.\n", TOS_NODE_ID, payload_p->msg_id, payload_p->destination);
+                }
+
+                locked = TRUE;
+            }
+
+        }
+
+        return TRUE;
+
+    }
+
+    /*
     * This message is used to set the msg_tx variable with the values of 
     * the new message the sensor node is transmitting.
     */
-    void set_last_message_transmitted(sense_msg_t *m) {
+    void set_last_message_transmitted(sense_msg_t *msg) {
 
-        msg_tx.sense_msg.type = m->type;
-        msg_tx.sense_msg.msg_id = m->msg_id;
-        msg_tx.sense_msg.data = m->data;
-        msg_tx.sense_msg.sender = m->sender;
-        msg_tx.sense_msg.destination = m->destination;
+        msg_tx.sense_msg.type = msg->type;
+        msg_tx.sense_msg.msg_id = msg->msg_id;
+        msg_tx.sense_msg.data = msg->data;
+        msg_tx.sense_msg.sender = msg->sender;
+        msg_tx.sense_msg.destination = msg->destination;
 
         msg_tx.ack_received = FALSE;
 
@@ -170,9 +194,9 @@ module SenseNetC @safe() {
         char buffer[128];    
         if (message->sender == 1) {
             snprintf(buffer, sizeof(buffer), "fieldone:%u", message->data);
-        } else if (message->sender == 2) {
-            snprintf(buffer, sizeof(buffer), "fieldtwo:%u", message->data);
         } else if (message->sender == 3) {
+            snprintf(buffer, sizeof(buffer), "fieldtwo:%u", message->data);
+        } else if (message->sender == 5) {
             snprintf(buffer, sizeof(buffer), "fieldthree:%u", message->data);
         } else {
             return;
@@ -190,7 +214,7 @@ module SenseNetC @safe() {
     */
     event void Boot.booted() {
 
-        printf("[BOOT] Application booted for node %u.\n", TOS_NODE_ID);
+        printf("[BOOT] NODE %u: Application booted.\n", TOS_NODE_ID);
 
         if(TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5){
             initialize_counter();
@@ -217,23 +241,23 @@ module SenseNetC @safe() {
         // If the radio is correctly turned on, Timer1 starts
         if(err == SUCCESS) {
 
-            dbg("radio", "[RADIO] Radio successfully started for node %u.\n", TOS_NODE_ID);
+            printf("[RADIO] NODE %u: Radio successfully started.\n", TOS_NODE_ID);
 
             switch(TOS_NODE_ID) {
                 case 1:
                     call Timer1.startPeriodic(2000);
                     break;
                 case 2:
-                    call Timer1.startPeriodic(2500);
-                    break;
-                case 3:
                     call Timer1.startPeriodic(3000);
                     break;
+                case 3:
+                    call Timer1.startPeriodic(4000);
+                    break;
                 case 4:
-                    call Timer1.startPeriodic(3500);
+                    call Timer1.startPeriodic(5000);
                     break;
                 case 5:
-                    call Timer1.startPeriodic(4000);
+                    call Timer1.startPeriodic(6000);
                     break;
                 default:
                     break;
@@ -243,7 +267,7 @@ module SenseNetC @safe() {
         // If the radio didn't turn on successfully, the start is performed again
         else {
 
-            dbg("radio", "[RADIO] Radio starting failed for node %u...restarting.\n", TOS_NODE_ID);
+            printf("[RADIO] NODE %u: Radio failed to start...restarting.\n", TOS_NODE_ID);
             call AMControl.start();
 
         }
@@ -255,7 +279,7 @@ module SenseNetC @safe() {
     */
     event void AMControl.stopDone(error_t err) {
 
-        dbg("radio", "[RADIO] Radio stopped for node %u.\n", TOS_NODE_ID);
+        printf("[RADIO] NODE %u: Radio stopped.\n", TOS_NODE_ID);
 
     }
     
@@ -265,16 +289,40 @@ module SenseNetC @safe() {
     * This event is triggered when a message is sent.
     * When the send process terminates, the lock is put to FALSE in order to allow other process to use
     * the radio transmission.
+    * As explained in the description of the trasmitted_to_second_gateway variable, in the sendDone event
+    * it is also performed the transmission to the second gateway for those sensor nodes which are connected to both
+    * the gateways (which are node 2 and node 4).
     */
     event void AMSend.sendDone(message_t* bufPtr, error_t error) {
 
+        uint8_t addr;
+        sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
+
         if (error == SUCCESS) {
 
-            dbg("radio_send", "[RADIO_SEND] Packet sent from %u at time %s.\n", TOS_NODE_ID, sim_time_string());
+            printf("[RADIO_SEND] NODE %u: Packet successfully sent from %u.\n", TOS_NODE_ID, TOS_NODE_ID);
+
+            if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
+
+                if (transmitted_to_second_gateway == FALSE) {
+
+                    transmitted_to_second_gateway = TRUE;
+
+                    // Data packet is prepared for gateway 2
+                    addr = 7;
+
+                    payload_p->destination = addr;
+
+                    // The data packet is sent to gateway 2
+                    generate_send(addr, &globalpacket, 0);
+
+                }
+
+            }
 
         } else {
 
-            dbgerror("radio_send", "[RADIO_SEND] Send done error for node %u!\n", TOS_NODE_ID);
+            printf("[RADIO_SEND] NODE %u: Send done error for node!\n", TOS_NODE_ID);
 
         }
 
@@ -295,15 +343,22 @@ module SenseNetC @safe() {
     }
 
     /*
-    * TODO: comments
+    * This timer is used for the periodic transmission of a new message from each sensor node.
+    * Their period is defined in the Boot.booted event.
+    * We generate the packet to be sent defining the fields, which are type (0 for data and 1 for ack),
+    * msg_id, sender (which for sensor nodes is always the TOS_NODE_ID), destination (sensor nodes always
+    * set it to the ID of the gatway they are transmitting to, then they will forward it to the server).
+    * Once the packet is ready, we call the generate_send function to start the sending process.
+    * After that, we save in msg_tx the new message that is being transmitted since if the node
+    * does not receive any ack, it will need to re-create the packet and retransmit it again.
     */
     event void Timer1.fired() {
 
-        // a pointer to globalpacket (message_t variable) is declared and assigned to payload_p 
+        // Pointer to globalpacket (message_t variable) is declared and assigned to payload_p 
         sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
-        uint16_t addr;
+        uint16_t addr = 0;
 
-        dbg("timer1", "[TIMER1] Timer fired out.\n");
+        printf("[TIMER1] NODE %u: Timer fired out. Time to send a new message.\n", TOS_NODE_ID);
 
         if (payload_p == NULL){
             return;
@@ -312,183 +367,108 @@ module SenseNetC @safe() {
         // When Timer1 fires out, the sensor prepares a data packet
         if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
 
-            // data packet is prepared for gateway 1 
+            // Data packet is prepared for gateway 1 
             addr = 6;
 
-            payload_p->type = 0;
-            payload_p->msg_id = counter;
-            payload_p->sender = TOS_NODE_ID;
-            payload_p->destination = addr;
-            payload_p->data = call Random.rand16() % 100; // Generates random integer
-
-            // The data packet is sent to gateway 1
-            generate_send(addr, &globalpacket, 0);
-
-            // data packet is prepared for gateway 2
-            addr = 7;
-
-            payload_p->type = 0;
-            payload_p->msg_id = counter;
-            payload_p->sender = TOS_NODE_ID;
-            payload_p->destination = addr;
-            payload_p->data = call Random.rand16() % 100; // Generate random integer
-
-            // Increase message id counter
-            counter++;
-
-            // The data packet is sent to gateway 2
-            generate_send(addr, &globalpacket, 0);
-
-            msg_tx.sense_msg.type = payload_p->type;
-            msg_tx.sense_msg.sender = payload_p->sender;
-            msg_tx.sense_msg.destination = payload_p->destination;
-            msg_tx.sense_msg.data = payload_p->data;
-            msg_tx.sense_msg.msg_id = payload_p->msg_id;
+            // When the first send will end successfully, this boolean will be used to check
+            // if we need to send also to the second gateway (just for node 2 and 4)
+            transmitted_to_second_gateway = FALSE;
 
         } else if (TOS_NODE_ID == 1) {
 
-            // data packet is prepared for gateway 1 
+            // Data packet is prepared for gateway 1 
             addr = 6;
-
-            payload_p->type = 0;
-            payload_p->msg_id = counter;
-            payload_p->sender = TOS_NODE_ID;
-            payload_p->destination = addr;
-            payload_p->data = call Random.rand16() % 100; // Generate random integer
-
-            // Increase message id counter
-            counter++;
-
-            // The data packet is sent to gateway 1
-            generate_send(addr, &globalpacket, 0);
-
-            msg_tx.sense_msg.type = payload_p->type;
-            msg_tx.sense_msg.sender = payload_p->sender;
-            msg_tx.sense_msg.destination = payload_p->destination;
-            msg_tx.sense_msg.data = payload_p->data;
-            msg_tx.sense_msg.msg_id = payload_p->msg_id;
 
         } else if (TOS_NODE_ID == 3 || TOS_NODE_ID == 5){
 
-            // data packet is prepared for gateway 2
+            // Data packet is prepared for gateway 2
             addr = 7;
-
-            payload_p->type = 0;
-            payload_p->msg_id = counter;
-            payload_p->sender = TOS_NODE_ID;
-            payload_p->destination = addr;
-            payload_p->data = call Random.rand16() % 100; // Generate random integer
-
-            // Increase message id counter
-            counter++;
-
-            // The data packet is sent to gateway 2
-            generate_send(addr, &globalpacket, 0);
-
-            msg_tx.sense_msg.type = payload_p->type;
-            msg_tx.sense_msg.sender = payload_p->sender;
-            msg_tx.sense_msg.destination = payload_p->destination;
-            msg_tx.sense_msg.data = payload_p->data;
-            msg_tx.sense_msg.msg_id = payload_p->msg_id;
         
-        } else {
-
-            //dbg("timer1", "[TIMER1] Error : selected node doesn't exist.\n");
-            printf("[TIMER1] Error : selected node doesn't exist.\n");
-
         }
+
+        create_data_message(payload_p, addr);
+
+        generate_send(addr, &globalpacket, 0);
+
+        // Increase message id counter
+        counter++;
+
+        // We save the last message transmitted in case we need to retransmit it again due to ack not received
+        set_last_message_transmitted(payload_p);
 
         call Timer2.startOneShot(1000);
     }
 
     /*
-    * TODO: comments
+    * This timer is used for the 1000ms window that sensor nodes open after a transmission in order to
+    * receive an ack. When the timer fires out, we check the value ack_received of the msg_tx variable.
+    * If the ack has not been received, we retransmit it again, otherwise we do nothing.
     */
     event void Timer2.fired() {
     
-        // a pointer to globalpacket (message_t variable) is declared and assigned to payload_p 
+        // Pointer to globalpacket (message_t variable) is declared and assigned to payload_p 
         sense_msg_t* payload_p = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
-        uint16_t addr;
+        uint16_t addr = 0;
 
         if (payload_p == NULL){
             return;
         }
 
-        //dbg("timer2", "[TIMER2] Timer fired out.\n");
-        printf("[TIMER2] Timer fired out.\n");
+        printf("[TIMER2] NODE %u: Timer fired out.\n", TOS_NODE_ID);
 
         if (msg_tx.ack_received == FALSE) {
 
-            //dbg("timer2", "[TIMER2] 1000ms passed and no ACK has been received. Going to retransmit...\n");
-            printf("[TIMER2] 1000ms passed and no ACK has been received. Going to retransmit...\n");
+            printf("[TIMER2] NODE %u: 1000ms passed and no ACK has been received. Going to retransmit...\n", TOS_NODE_ID);
 
             if (TOS_NODE_ID == 2 || TOS_NODE_ID == 4) {
 
-                // data packet is prepared for gateway 1 
+                // Data packet is prepared for gateway 1 
                 addr = 6;
 
-                payload_p->type = msg_tx.sense_msg.type;
-                payload_p->msg_id = msg_tx.sense_msg.msg_id;
-                payload_p->sender = msg_tx.sense_msg.sender;
-                payload_p->destination = addr;
-                payload_p->data = msg_tx.sense_msg.data;
-
-                // The data packet is sent to gateway 1
-                generate_send(addr, &globalpacket, 0);
-
-                // data packet is prepared for gateway 2
-                addr = 7;
-
-                payload_p->type = msg_tx.sense_msg.type;
-                payload_p->msg_id = msg_tx.sense_msg.msg_id;
-                payload_p->sender = msg_tx.sense_msg.sender;
-                payload_p->destination = addr;
-                payload_p->data = msg_tx.sense_msg.data;
-
-                // The data packet is sent to gateway 2
-                generate_send(addr, &globalpacket, 0);
+                // When the first send will end successfully, this boolean will be used to check
+                // if we need to send also to the second gateway (just for node 2 and 4)
+                transmitted_to_second_gateway = FALSE;
 
             } else if (TOS_NODE_ID == 1) {
 
-                // data packet is prepared for gateway 1 
+                // Data packet is prepared for gateway 1 
                 addr = 6;
-
-                payload_p->type = msg_tx.sense_msg.type;
-                payload_p->msg_id = msg_tx.sense_msg.msg_id;
-                payload_p->sender = msg_tx.sense_msg.sender;
-                payload_p->destination = addr;
-                payload_p->data = msg_tx.sense_msg.data;
-
-                // The data packet is sent to gateway 1
-                generate_send(addr, &globalpacket, 0);
 
             } else if (TOS_NODE_ID == 3 || TOS_NODE_ID == 5){
 
-                // data packet is prepared for gateway 2
+                // Data packet is prepared for gateway 2
                 addr = 7;
-
-                payload_p->type = msg_tx.sense_msg.type;
-                payload_p->msg_id = msg_tx.sense_msg.msg_id;
-                payload_p->sender = msg_tx.sense_msg.sender;
-                payload_p->destination = addr;
-                payload_p->data = msg_tx.sense_msg.data; // Generates random integer
-
-                // The data packet is sent to gateway 2
-                generate_send(addr, &globalpacket, 0);
             
             }
+
+            payload_p->type = msg_tx.sense_msg.type;
+            payload_p->msg_id = msg_tx.sense_msg.msg_id;
+            payload_p->sender = msg_tx.sense_msg.sender;
+            payload_p->destination = addr;
+            payload_p->data = msg_tx.sense_msg.data;
+
+            generate_send(addr, &globalpacket, 0);
+            
+        } else {
+
+            printf("[TIMER2] NODE %u: ack has been received, so there is no need to retransmit.\n", TOS_NODE_ID);
+
         }
         
     }
 
 
     //***************** Receive interface *****************//
-    event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
     /*
-    * Parse the receive packet.
-    * Implement all the functionalities.
-    * Perform the packet send using the generate_send function if needed.
+    * When a message is received by a node, this event is triggered.
+    * Depending on the type of message and depending on the TOS_NODE_ID, we behave in different ways.
+    * When the server receives a data message it prepares the ack and sends it back passing by the
+    * gateway which forwarded the message.
+    * When a gateway receives a messages check what is its type and forwards to the sensor node if it is an ack,
+    * or sends it to the server if it is a data message.
+    * Finally, a sensor node sets the ack_received field of msg_tx to true when receives an ack.
     */
+    event message_t* Receive.receive(message_t* bufPtr, void* payload, uint8_t len) {
 
         if (len != sizeof(sense_msg_t)) {
             return bufPtr;
@@ -650,13 +630,10 @@ module SenseNetC @safe() {
                     printf("[RADIO_REC] RECEIVING A DUPLICATE AND DISCARDING IT.\n");
                 }
 
-                // TODO Implementation of dup-ACK suppression
-
             } else if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
 
                 //dbg("radio_rec", "[RADIO_REC] SENSOR RECEIVED ACK\n");
                 printf("[RADIO_REC] SENSOR RECEIVED ACK\n");
-                // TODO Implementation of data packet retransmission
 
             } else {
 

@@ -1,3 +1,4 @@
+#include "printf.h"
 #include "SenseNet.h"
 
 configuration SenseNetAppC {}
@@ -15,6 +16,8 @@ implementation {
     components new TimerMilliC() as Timer2;
 
     components RandomC as Random;
+    
+    components SerialPrintfC;
 
     //Boot interface
     App.Boot -> MainC.Boot;
