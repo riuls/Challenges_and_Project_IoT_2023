@@ -116,7 +116,7 @@ module SenseNetC @safe() {
     * The first step for the send is to call the generate_send which will launch a Timer to emulate
     * the transmission delay. The packet and its destination are then saved into queued_packet and queue_addr.
     */
-    bool generate_send (uint16_t address, message_t* packet, uint8_t type){
+    bool generate_send (uint16_t address, message_t* packet){
 
         if (call Timer0.isRunning()) {
 
@@ -314,7 +314,7 @@ module SenseNetC @safe() {
                     payload_p->destination = addr;
 
                     // The data packet is sent to gateway 2
-                    generate_send(addr, &globalpacket, 0);
+                    generate_send(addr, &globalpacket);
 
                 }
 
@@ -388,7 +388,7 @@ module SenseNetC @safe() {
 
         create_data_message(payload_p, addr);
 
-        generate_send(addr, &globalpacket, 0);
+        generate_send(addr, &globalpacket);
 
         // Increase message id counter
         counter++;
@@ -447,7 +447,7 @@ module SenseNetC @safe() {
             payload_p->destination = addr;
             payload_p->data = msg_tx.sense_msg.data;
 
-            generate_send(addr, &globalpacket, 0);
+            generate_send(addr, &globalpacket);
             
         } else {
 
@@ -478,115 +478,55 @@ module SenseNetC @safe() {
             sense_msg_t* mess = (sense_msg_t*) payload;
             // Variable that will contain the payload of the message that will be sent
             sense_msg_t* new_mess = (sense_msg_t*)call Packet.getPayload(&globalpacket, sizeof(sense_msg_t));
-            uint16_t addr;
- 
-            //dbg("radio_rec", "[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
-            printf("[RADIO_REC] Received a message of type %u at node %u.\n", mess->type, TOS_NODE_ID);
+            
+            uint16_t addr = 0;
 
             if (new_mess == NULL) {
-                //dbgerror("radio_rec", "[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
-                printf("[RADIO_REC] ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n");
+                printf("[RADIO_REC] NODE %u: ERROR ALLOCATING MEMORY FOR NEW MESSAGE.\n", TOS_NODE_ID);
                 return bufPtr;
             }
-   
-            // A data message is received, debug messages are sent
-            if (mess->type == 0) {
-
-                // If the current node is node 7, that is the destination of the data message, we don't need to forward packets anymore
-                if (TOS_NODE_ID == 8) {
-
-                    // WE'RE DONE
-                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
-                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
-
-                } else if ( TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
-                    
-                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
-                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u WITH VALUE %u.\n", TOS_NODE_ID, mess->type, mess->data);
-
-                } else {
-
-                    //dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET\n");
-                    printf("[RADIO_REC] ERROR : SENSOR NODE RECEIVED A DATA PACKET\n");
-
-                }
+ 
+            printf("[RADIO_REC] NODE %u: Received a message of type %u, ID %u.\n", TOS_NODE_ID, mess->type, mess->msg_id);
            
-            } else if (mess->type == 1) {
+            if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
 
-                if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
+                printf("[RADIO_REC] NODE %u: Received ack for message with ID %u.\n", TOS_NODE_ID, mess->msg_id);
+                msg_tx.ack_received = TRUE;
 
-                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
-                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
-                    msg_tx.ack_received = TRUE;
-
-                } else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
-
-                    //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
-                    printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u.\n", TOS_NODE_ID, mess->type);
-
-                } else {
-
-                    //dbg ("radio_rec", "[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET\n");
-                    printf("[RADIO_REC] ERROR : SENSOR NODE RECEIVED AN ACK PACKET\n");
-
-                }
-
-            } else {
-
-                //dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
-                printf("[RADIO_REC] ERROR : INVALID MESSAGE TYPE RECEIVED AT NODE %u\n", TOS_NODE_ID);
-
-            }
-             
-            // Logic implementation at the receiver 
-           
-            if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7){
+            } else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
                 
                 if(mess->type == 0){
 
-                    // Forward data packet to Server node
-                    new_mess->type = mess->type;
-                    new_mess->msg_id = mess->msg_id;
-                    new_mess->data = mess->data;
-                    new_mess->sender = mess->sender;
-                    new_mess->destination = mess->destination;
-                    
-                    addr = 8;
-              
-                    generate_send(addr, &globalpacket, 0);
+                    // If a gateway is receiveing a data message, it needs to forward it to the server
+                    addr = SERVER_NODE;
 
                 } else if (mess->type == 1) {
                     
-                    // Forward ack to correspondent sensor node
-                    new_mess->type = mess->type;
-                    new_mess->msg_id = mess->msg_id;
-                    new_mess->data = mess->data;
-                    new_mess->sender = mess->sender;
-                    new_mess->destination = mess->destination;
-                    
+                    // If a gateway is receiving an ack, it needs to send it to the sensor node which is waiting
                     addr = new_mess->destination;
-                    generate_send(addr, &globalpacket, 1);
-
-                    //dbg("radio_rec", "[RADIO_REC] GATEWAY RECEIVED ACK\n");
-                    printf("[RADIO_REC] GATEWAY RECEIVED ACK\n");
-
-                } else {
-
-                    //dbg ("radio_rec", "[RADIO_REC] ERROR : INVALID MESSAGE TYPE\n");
-                    printf("[RADIO_REC] ERROR : INVALID MESSAGE TYPE\n");
-
+                    
                 }
 
-            } else if (TOS_NODE_ID == 8) {
+                printf("[RADIO_REC] NODE %u: Gateway forwarding the received message to %u.\n", TOS_NODE_ID, addr);
 
-                //dbg("radio_rec", "[RADIO_REC] WE ARE THE SERVER AND WE HAVE last_message_received[mess->sender - 1].msg_id = %u and mess->msg_id = %u.\n", msg_from_sensor[mess->sender - 1].msg_id, mess->msg_id);
-                printf("[RADIO_REC] WE ARE THE SERVER AND WE HAVE last_message_received[mess->sender - 1].msg_id = %u and mess->msg_id = %u.\n", msg_from_sensor[mess->sender - 1].msg_id, mess->msg_id);
+                // We copy the content of the message we received in order to forward it to the defined destination
+                new_mess->type = mess->type;
+                new_mess->msg_id = mess->msg_id;
+                new_mess->data = mess->data;
+                new_mess->sender = mess->sender;
+                new_mess->destination = mess->destination;
+
+                generate_send(addr, &globalpacket);
+
+            } else if (TOS_NODE_ID == SERVER_NODE) {
                 
                 // Send data over the network using Cooja        
                 send_data_to_node_red(mess);
                 printfflush();
 
                 if (msg_from_sensor[mess->sender - 1].msg_id != mess->msg_id) {
+
+                    printf("[SERVER] Generating the ack of the message sent by %u with ID %u.\n", mess->sender, mess->msg_id);
 
                     msg_from_sensor[mess->sender - 1].msg_id = mess->msg_id;
                     msg_from_sensor[mess->sender - 1].gateway = mess->destination;
@@ -599,15 +539,12 @@ module SenseNetC @safe() {
                     new_mess->destination = mess->sender;
                         
                     addr = new_mess->sender;
-                    generate_send(addr, &globalpacket, 1);
-                    //dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
-                    printf("[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
-                    
-                    //dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
-                    printf("[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+                    generate_send(addr, &globalpacket);
                 
                 } else if (msg_from_sensor[mess->sender - 1].gateway == mess->destination &&
                     msg_from_sensor[mess->sender - 1].retransmitted == FALSE) {
+
+                    printf("[SERVER] Retransmitting the ack of the message sent by %u with ID %u.\n", mess->sender, mess->msg_id);
 
                     msg_from_sensor[mess->sender - 1].retransmitted = TRUE;
 
@@ -618,27 +555,13 @@ module SenseNetC @safe() {
                     new_mess->destination = mess->sender;
 
                     addr = new_mess->sender;
-                    generate_send(addr, &globalpacket, 1);
-                    //dbg("radio_rec", "[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
-                    printf("[RADIO_REC] COPYING FROM MESSAGE WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", mess->msg_id, mess->sender, mess->destination);
-                    
-                    //dbg("radio_rec", "[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
-                    printf("[RADIO_REC] SENDING ACK PACKET FROM SERVER WITH ID %u SENDER ADDRESS %u and DEST ADDRESS %u\n", new_mess->msg_id, new_mess->sender, new_mess->destination);
+                    generate_send(addr, &globalpacket);
 
                 } else {
-                    //dbg("radio_rec", "[RADIO_REC] RECEIVING A DUPLICATE AND DISCARDING IT.\n");
-                    printf("[RADIO_REC] RECEIVING A DUPLICATE AND DISCARDING IT.\n");
+
+                    printf("[SERVER] The received message with ID %u sent by %u is a duplicate, discarding it...\n", mess->msg_id, mess->sender);
+
                 }
-
-            } else if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
-
-                //dbg("radio_rec", "[RADIO_REC] SENSOR RECEIVED ACK\n");
-                printf("[RADIO_REC] SENSOR RECEIVED ACK\n");
-
-            } else {
-
-                //dbg("radio_rec", "[RADIO_REC] ERROR : INVALID NODE\n");
-                printf("[RADIO_REC] ERROR : INVALID NODE\n");
 
             }
             
