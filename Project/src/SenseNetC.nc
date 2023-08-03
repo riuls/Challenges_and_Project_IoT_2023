@@ -537,6 +537,7 @@ module SenseNetC @safe() {
 
                     //dbg ("radio_rec", "[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
                     printf("[RADIO_REC] HERE IT IS NODE %u AND I RECEIVED THE PACKET OF TYPE %u. WE'RE DONE!\n", TOS_NODE_ID, mess->type);
+                    msg_tx.ack_received = TRUE;
 
                 } else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
 
