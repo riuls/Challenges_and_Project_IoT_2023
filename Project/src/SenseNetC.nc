@@ -492,8 +492,10 @@ module SenseNetC @safe() {
            
             if (TOS_NODE_ID >= 1 && TOS_NODE_ID <= 5) {
 
-                printf("[RADIO_REC] NODE %u: Received ack for message with ID %u.\n", TOS_NODE_ID, mess->msg_id);
-                msg_tx.ack_received = TRUE;
+                if (mess->type == 1 && mess->msg_id == msg_tx.sense_msg.msg_id) {
+                    msg_tx.ack_received = TRUE;
+                    printf("[RADIO_REC] NODE %u: Received ack for message with ID %u.\n", TOS_NODE_ID, mess->msg_id);
+                }
 
             } else if(TOS_NODE_ID == 6 || TOS_NODE_ID == 7) {
                 
