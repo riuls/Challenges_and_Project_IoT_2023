@@ -2,13 +2,13 @@
 #include "SenseNet.h"
 
 /**
- * Implementation of the SenseNet application with TOSSIM debug. 
+ * Implementation of the SenseNet application with Cooja debug. 
  * SenseNet includes 8 nodes connected through a Radio interface, 
  * the first five are sensor and periodically transmit random data, 
  * while the other two are gateways which receive and forward the data to the last node which acts as a network server: 
  * it transmits the data to a Node-Red and an MQTT server and it sends an ACK to the correspondent gateway. 
  * The Network Server node also eliminates dup-ACKS. 
- * The sensor nodes retransmit the data if an ACK is not received in a 1ms window from the sending.
+ * The sensor nodes retransmit the data if an ACK is not received in a 1000ms window from the sending.
  *
  * @author Mario Cela
  * @author Riaz Luis Ahmed
@@ -99,7 +99,9 @@ module SenseNetC @safe() {
     }
 
     /*
-    * 
+    * This function is called by sensor node when they need to transmit a new data message.
+    * The id is set considering the counter, the destination is given by the gateway to which
+    * the message will be sent, data is randomly generated inside the [0, 99] interval.
     */
     void create_data_message(sense_msg_t *msg, uint16_t addr) {
 
@@ -503,7 +505,7 @@ module SenseNetC @safe() {
                 } else if (mess->type == 1) {
                     
                     // If a gateway is receiving an ack, it needs to send it to the sensor node which is waiting
-                    addr = new_mess->destination;
+                    addr = mess->destination;
                     
                 }
 

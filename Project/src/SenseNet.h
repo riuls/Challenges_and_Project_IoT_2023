@@ -2,7 +2,6 @@
 #define SENSE_NET_H
 
 #define SENSOR_NODES 5
-#define GATEWAY_NODES 2
 #define SERVER_NODE 8
 
 typedef nx_struct sense_msg {
