@@ -1,0 +1,96 @@
+[
+    {
+        "id": "a2e55303.276788",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "cff1c999.d9a0c",
+        "type": "debug",
+        "z": "a2e55303.276788",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "x": 970,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "f9ff8064.ee0f08",
+        "type": "tcp in",
+        "z": "a2e55303.276788",
+        "name": "",
+        "server": "client",
+        "host": "localhost",
+        "port": "60001",
+        "datamode": "stream",
+        "datatype": "utf8",
+        "newline": "\\n",
+        "topic": "Value",
+        "base64": false,
+        "x": 200,
+        "y": 200,
+        "wires": [
+            [
+                "95d67966.663518"
+            ]
+        ]
+    },
+    {
+        "id": "dc0ad60a.862998",
+        "type": "mqtt out",
+        "z": "a2e55303.276788",
+        "name": "MQTT_Server",
+        "topic": "channels/2229789/publish",
+        "qos": "",
+        "retain": "",
+        "broker": "d3fa694e.2660b",
+        "x": 980,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "95d67966.663518",
+        "type": "function",
+        "z": "a2e55303.276788",
+        "name": "extract payload ",
+        "func": "let string = msg.payload;\n\nif (string.match(/fieldone/g) !== null) {\n    let matches = string.match(/(\\d+)/g);\n    msg.payload = \"field1=\"+matches.join(',')+\"&MQTTPUBLISH=TRUE\";\n    return msg;\n} else if (string.match(/fieldtwo/g) !== null) {\n    let matches = string.match(/(\\d+)/g);\n    msg.payload = \"field2=\"+matches.join(',')+\"&MQTTPUBLISH=TRUE\";\n    return msg;\n} else if (string.match(/fieldthree/g) !== null) {\n    let matches = string.match(/(\\d+)/g);\n    msg.payload = \"field3=\"+matches.join(',')+\"&MQTTPUBLISH=TRUE\";\n    return msg;\n}\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 460,
+        "y": 200,
+        "wires": [
+            [
+                "cff1c999.d9a0c",
+                "dc0ad60a.862998"
+            ]
+        ]
+    },
+    {
+        "id": "d3fa694e.2660b",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "Thingspeak",
+        "broker": "mqtt3.thingspeak.com",
+        "port": "1883",
+        "clientid": "HxcWOwIuHCo3FCIcOBwiKQw",
+        "usetls": false,
+        "compatmode": false,
+        "keepalive": "60",
+        "cleansession": false,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    }
+]
