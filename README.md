@@ -8,7 +8,7 @@ Challenges and Final Project of the Internet of Things (IoT) course at Politecni
 <br />
 <div align="center">
   <a href="https://github.com/MarioCela/Challenges_and_Project_IoT_2023">
-    <img src="images/iot.png" alt="IoT" width="128">
+    <img src="Project/images/iot.jpg" alt="IoT" width="128">
   </a>
 
 <h3 align="center">Challenges and Project IoT 2023</h3>
