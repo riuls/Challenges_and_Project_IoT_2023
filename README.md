@@ -1,7 +1,4 @@
 # Challenges_and_Project_IoT_2023
-Challenges and Final Project of the Internet of Things (IoT) course at Politecnico di Milano
-
-
 <a name="readme-top"></a>
 
 <!-- PROJECT LOGO -->
@@ -16,32 +13,58 @@ Challenges and Final Project of the Internet of Things (IoT) course at Politecni
 </div>
 
 <!-- ABOUT THE PROJECT -->
-## Challenges
+## Challenges :boom:
 
 ### Challenge 1:
 
-***Descrizione del problema***
+The first challenge was about traffic analysis. In particular, we were given a pcap file and we had to answer to 6 questions.
+
+The main topic of the questions was counting the number of CoAP or MQTT messages were captured in the pcap file, given some conditions (request type, destination of the message, communication to a specific topic, etc.).
+
+For more information on the assignment, check [here](Challenges/Challenge_1/src/resources/Challenge_1.pdf).
+
+For half of the questions, I used the scapy library in Python in order to write scripts that would offer me an answer to the questions. The other half has been solved using Wireshark filtering.
+
+For more in depth information, please read the [report](Challenges/Challenge_1/src/resources/Answers.pdf) and the [source code](Challenges/Challenge_1/src/main.py).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Challenge 2:
 
-***Descrizione del problema***
+The second challenge was about Node-Red. 
+
+Starting from a csv file, we had to pseudo-randomly choose a row and check the type of the message: if it was an MQTT publish, we had to publish a message to a topic specified in the requirements.
+
+Then, the Node-Red flow had to subscribe to that topic, get the messages we were publishing, keep only those messages which temperature measure was in Celsius, and create a temperature chart with those values.
+
+For more information on the assignment, check [here](Challenges/Challenge_2/resources/Challenge2.pdf).
+
+The main functionalities of row-extraction in the csv file and of message-filtering were implemented in the function nodes of the Node-Red flow in JavaScript.
+
+To check our implementation, please see our [report](Challenges/Challenge_2/resources/Report.pdf) and the [js scripts](Challenges/Challenge_2/resources/function_nodes_scripts).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Challenge 3:
 
-***Descrizione del problema***
+The third challenge was about TinyOS and TOSSIM.
+
+We had to implement a simple routing protocol based on broadcasting strating from a provided sketch. Before transmitting a message, each node checks its routing table to see if a route is present for the selected destination: if it is, the message is forwarded to the next hop, otherwise a ROUTE_REQ message is sent in broadcast. When the actual destination will receive a ROUTE_REQ message, it will answer in broadcast with a ROUTE_REPLY.
+
+For more information on the assignment, check [here](Challenges/Challenge_3/resources/Challenge3.pdf).
+
+We implemented the functionalities using the nesC programming language (strictly related to TinyOS), in particular the most interesting files are [RadioRoute.h](Challenges/Challenge_3/src/RadioRoute.h) for the structure of the messages exchanged over the network, [RadioRouteAppC.nc](Challenges/Challenge_3/src/RadioRouteAppC.nc) for the declaration of the interfaces that has been used, and [RadioRouteC.nc](Challenges/Challenge_3/src/RadioRouteC.nc) for the actual implementation. Then we simulated it thanks to the [simulation script](Challenges/Challenge_3/src/RunSimulationScript.py), that uses the TOSSIM library.
+
+Visit the [report](Challenges/Challenge_3/resources/Deliverables/report.pdf) and the linked pages to understand the actual implementation of the network and of the nodes.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Project: LoraWAN-like Sensor Network
+## Project: LoraWAN-like Sensor Network 💻
 
 ***Descrizione del problema***
 
 <p align="center">
-  <img src="***Immagine contestuale***" alt="***qualcosa nel caso l'immagine non vada***"/>
+  <img src="Project/images/network.png" alt="network"/>
 </p>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
