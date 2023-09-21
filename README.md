@@ -18,7 +18,7 @@
 
 ### Challenge 2:
 
-The second challenge was about Node-Red. 
+This challenge was about Node-Red. 
 
 Starting from a csv file, we had to pseudo-randomly choose a row and check the type of the message: if it was an MQTT publish, we had to publish a message to a topic specified in the requirements.
 
@@ -34,7 +34,7 @@ To check our implementation, please see our [report](Challenges/Challenge_2/reso
 
 ### Challenge 3:
 
-The third challenge was about TinyOS and TOSSIM.
+This challenge was about TinyOS and TOSSIM.
 
 We had to implement a simple routing protocol based on broadcasting strating from a provided sketch. Before transmitting a message, each node checks its routing table to see if a route is present for the selected destination: if it is, the message is forwarded to the next hop, otherwise a ROUTE_REQ message is sent in broadcast. When the actual destination will receive a ROUTE_REQ message, it will answer in broadcast with a ROUTE_REPLY.
 
