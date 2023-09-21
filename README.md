@@ -15,19 +15,6 @@
 <!-- ABOUT THE PROJECT -->
 ## Challenges :boom:
 
-### Challenge 1:
-
-The first challenge was about traffic analysis. In particular, we were given a pcap file and we had to answer to 6 questions.
-
-The main topic of the questions was counting the number of CoAP or MQTT messages were captured in the pcap file, given some conditions (request type, destination of the message, communication to a specific topic, etc.).
-
-For more information on the assignment, check [here](Challenges/Challenge_1/src/resources/Challenge_1.pdf).
-
-For half of the questions, I used the scapy library in Python in order to write scripts that would offer me an answer to the questions. The other half has been solved using Wireshark filtering.
-
-For more in depth information, please read the [report](Challenges/Challenge_1/src/resources/Answers.pdf) and the [source code](Challenges/Challenge_1/src/main.py).
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Challenge 2:
 
